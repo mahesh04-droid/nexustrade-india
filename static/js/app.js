@@ -65,8 +65,8 @@ function init() {
   fetchRiskStatus();
   fetchOrderHistory();
 
-  // Live data refresh loop (poll every 2s)
-  setInterval(refreshLive, 2000);
+  // Live data refresh loop (high frequency 500ms real-time stream)
+  setInterval(refreshLive, 500);
 }
 
 // ═══════════════════════════════════════════════════════════════

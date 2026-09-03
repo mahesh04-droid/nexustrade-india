@@ -146,13 +146,13 @@ class MarketDataStreamer:
         self._update_dom(symbol, price, decimals)
 
     def _background_stream_worker(self):
-        """Continuous background thread that periodically refreshes live market ticks & updates prices."""
+        """Continuous high-frequency background thread (500ms) for real-time live tick stream."""
         while True:
             try:
                 self.update_tick()
             except Exception as e:
                 print("Background ticker error:", e)
-            time.sleep(2)
+            time.sleep(0.5)
 
     def set_mode(self, mode):
         """Sets market data mode to 'LIVE' or 'SIMULATED'."""
@@ -312,17 +312,16 @@ class MarketDataStreamer:
             self.assets[symbol]["low_24h"] = min(c["low"] for c in self.history[symbol]["1m"])
 
     def update_tick(self, symbol=None):
-        """Updates live tick feeds. In LIVE mode, periodically polls exchange endpoints."""
+        """Updates live tick feeds. In LIVE mode, periodically syncs REST feeds while continuously generating live micro-ticks."""
         now_ts = time.time()
         
         if self.mode == "LIVE":
             if now_ts - self.last_live_fetch >= 3.0:
                 self.last_live_fetch = now_ts
-                self._fetch_live_market_data()
-            else:
-                self._micro_tick()
-        else:
-            self._micro_tick()
+                threading.Thread(target=self._fetch_live_market_data, daemon=True).start()
+        
+        # Always execute live micro-ticks for continuous high-frequency price action & DOM movement
+        self._micro_tick()
 
     def _micro_tick(self):
         """Micro tick simulation for smooth UI rendering."""
