@@ -156,6 +156,31 @@ def run_backtest():
     except Exception as e:
         return json_resp({"status": "ERROR", "message": str(e)}, 500)
 
+# API - 1-Click Interactive Live Demo Setup
+@app.route('/api/demo/setup', method='POST')
+def setup_demo_environment():
+    try:
+        # 1. Place a sample live trade on Master Account
+        order_res = account_manager.execute_order(
+            account_id="ACC-MASTER-01",
+            symbol="NIFTY50",
+            side="BUY",
+            quantity=5,
+            strategy="1-Click Demo Showcase",
+            trigger_copier=True
+        )
+        # 2. Activate VWAP Trend automated strategy
+        algo_res = algo_engine.toggle_algo("NIFTY50", "VWAP_TREND", "ACC-MASTER-01")
+        
+        return json_resp({
+            "status": "SUCCESS",
+            "message": "Live Interactive Demo environment loaded! Order placed & VWAP Trend Algo activated.",
+            "order": order_res.get("order"),
+            "algo": algo_res
+        })
+    except Exception as e:
+        return json_resp({"status": "ERROR", "message": str(e)}, 500)
+
 # API - Risk Manager & Emergency Kill Switch
 @app.route('/api/risk/status', method='GET')
 def get_risk_status():

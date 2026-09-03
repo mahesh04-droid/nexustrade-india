@@ -157,6 +157,19 @@ function setupListeners() {
   document.getElementById('tabTriggerKillBtn')?.addEventListener('click', triggerKillSwitch);
   document.getElementById('tabResetKillBtn')?.addEventListener('click', resetKillSwitch);
 
+  // Demo Showcase button
+  document.getElementById('btnLaunchDemoShowcase')?.addEventListener('click', async () => {
+    toast('info', 'Launching Demo Showcase', 'Executing sample trade & activating VWAP strategy...');
+    const data = await api('/api/demo/setup', {method: 'POST'});
+    if (data?.status === 'SUCCESS') {
+      toast('success', 'Demo Showcase Active', data.message);
+      fetchAccounts();
+      fetchCandles();
+      fetchAlgoPresets();
+      fetchOrderHistory();
+    }
+  });
+
   // Feed Toggle
   document.getElementById('feedToggleBtn')?.addEventListener('click', toggleMarketMode);
 

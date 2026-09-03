@@ -148,6 +148,33 @@ class AccountManager:
                     if child_res.get("status") == "SUCCESS":
                         copied_order_ids.append(child_res["order"]["order_id"])
 
+        # Real Broker Gateway execution if in Live mode
+        broker_response = None
+        if acc.get("mode") == "Live":
+            broker_name = acc.get("broker", "")
+            api_key = acc.get("api_key", "")
+            api_secret = acc.get("api_secret", "")
+            
+            try:
+                if "Zerodha" in broker_name:
+                    from brokers import ZerodhaKiteConnector
+                    conn = ZerodhaKiteConnector(api_key, api_secret)
+                    broker_response = conn.place_live_order(symbol, side, quantity, order_type, price)
+                elif "Angel" in broker_name:
+                    from brokers import AngelOneConnector
+                    conn = AngelOneConnector(api_key=api_key)
+                    broker_response = conn.place_live_order(symbol, side, quantity, order_type, price)
+                elif "Upstox" in broker_name:
+                    from brokers import UpstoxConnector
+                    conn = UpstoxConnector(api_key=api_key)
+                    broker_response = conn.place_live_order(symbol, side, quantity, order_type, price)
+                elif "Dhan" in broker_name:
+                    from brokers import DhanConnector
+                    conn = DhanConnector(client_id=api_key)
+                    broker_response = conn.place_live_order(symbol, side, quantity, order_type, price)
+            except Exception as e:
+                broker_response = {"status": "ERROR", "message": str(e)}
+
         # Update position on target account
         self._apply_position_change(account_id, symbol, side, quantity, price)
 
@@ -159,9 +186,10 @@ class AccountManager:
             "side": side,
             "quantity": quantity,
             "price": price,
-            "status": "FILLED",
+            "status": "FILLED" if not broker_response or broker_response.get("status") == "SUCCESS" else "REJECTED",
             "type": order_type,
             "strategy": strategy,
+            "broker_msg": broker_response.get("message") if broker_response else "Internal Execution",
             "copied_orders": copied_order_ids,
             "realized_pnl": 0.0,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
