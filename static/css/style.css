@@ -1464,3 +1464,122 @@ option { background: var(--bg-card); }
 .green { color: var(--green) !important; }
 .red { color: var(--red) !important; }
 .mono { font-family: var(--mono); }
+
+/* ════════════════════════════════════════════════════════════════
+   MOBILE BROWSER RESPONSIVE STYLES
+════════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  body {
+    flex-direction: column-reverse;
+  }
+
+  .sidebar {
+    width: 100% !important;
+    height: 56px !important;
+    flex-direction: row !important;
+    border-right: none !important;
+    border-top: 1px solid var(--border) !important;
+    padding: 0 0.25rem !important;
+    justify-content: space-around !important;
+    position: fixed !important;
+    bottom: 0 !important; left: 0 !important; right: 0 !important;
+    z-index: 1000 !important;
+    background: var(--bg-surface) !important;
+  }
+
+  .sidebar-header, .sidebar-footer, .nav-section-label {
+    display: none !important;
+  }
+
+  .nav-list {
+    flex-direction: row !important;
+    width: 100% !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    gap: 0 !important;
+  }
+
+  .nav-item {
+    flex-direction: column !important;
+    padding: 0.25rem 0.4rem !important;
+    gap: 0.15rem !important;
+    border-radius: var(--radius-sm) !important;
+    justify-content: center !important;
+  }
+
+  .nav-item .nav-label {
+    font-size: 0.58rem !important;
+  }
+
+  .nav-item .nav-icon {
+    width: 18px !important; height: 18px !important;
+  }
+
+  .app-shell {
+    margin-bottom: 56px !important;
+    height: calc(100vh - 56px) !important;
+  }
+
+  .topbar {
+    flex-wrap: wrap !important;
+    padding: 0.4rem 0.65rem !important;
+    gap: 0.5rem !important;
+    height: auto !important;
+  }
+
+  .topbar-left {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .ohlv-strip {
+    display: none !important;
+  }
+
+  .topbar-right {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .portfolio-strip {
+    font-size: 0.7rem !important;
+  }
+
+  .terminal-layout {
+    grid-template-columns: 1fr !important;
+    overflow-y: auto !important;
+  }
+
+  .watchlist-panel {
+    max-height: 200px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  .order-ticket-panel {
+    border-left: none !important;
+    border-top: 1px solid var(--border) !important;
+  }
+
+  .chart-wrap {
+    min-height: 260px !important;
+  }
+
+  .modal-box {
+    width: 92% !important;
+    padding: 1rem !important;
+  }
+
+  .accounts-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .algo-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .backtest-controls-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+}
