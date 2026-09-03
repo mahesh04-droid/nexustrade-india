@@ -54,9 +54,11 @@ class MarketDataStreamer:
 
     def _refresh_nse_cookies(self):
         """Refreshes official NSE India (www.nseindia.com) session cookies."""
+        import shutil
+        curl_cmd = shutil.which("curl.exe") or shutil.which("curl") or "curl"
         try:
             cmd = [
-                "curl.exe", "-s", "-L",
+                curl_cmd, "-s", "-L",
                 "-c", self.cookie_file,
                 "-H", f"User-Agent: {self.user_agent}",
                 "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -70,9 +72,11 @@ class MarketDataStreamer:
 
     def _fetch_nse_endpoint(self, endpoint):
         """Helper to fetch official NSE India API JSON endpoints using session cookies."""
+        import shutil
+        curl_cmd = shutil.which("curl.exe") or shutil.which("curl") or "curl"
         try:
             cmd = [
-                "curl.exe", "-s", "-L",
+                curl_cmd, "-s", "-L",
                 "-b", self.cookie_file,
                 "-c", self.cookie_file,
                 "-H", f"User-Agent: {self.user_agent}",

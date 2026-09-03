@@ -238,7 +238,9 @@ def launch_app():
         except Exception as e:
             print(f"PyWebView launch warning: {e}. Falling back to web server mode.")
             
-    run(app, host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)
+    port = int(os.environ.get('PORT', Config.PORT))
+    host = '0.0.0.0' if 'PORT' in os.environ else Config.HOST
+    run(app, host=host, port=port, debug=Config.DEBUG)
 
 if __name__ == '__main__':
     launch_app()
