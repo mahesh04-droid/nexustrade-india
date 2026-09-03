@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>NexusTrade India — Professional Algorithmic Trading Platform (NSE/BSE)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LEFT NAVIGATION SIDEBAR
+════════════════════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#brandGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <defs>
+          <linearGradient id="brandGrad" x1="0" y1="0" x2="24" y2="24">
+            <stop offset="0%" stop-color="#6366f1"/>
+            <stop offset="100%" stop-color="#06b6d4"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <span class="brand-name">NexusTrade</span>
+      <span class="brand-version">India Pro</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">MARKETS</div>
+    <button class="nav-item active" data-tab="terminal-tab" data-tooltip="Trading Terminal">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span class="nav-label">Terminal</span>
+      <div class="nav-badge live-dot"></div>
+    </button>
+    <button class="nav-item" data-tab="algo-tab" data-tooltip="Algo Studio">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/><path d="M21.18 8.02c-1-2.3-2.85-4.17-5.18-5.18"/></svg>
+      <span class="nav-label">Algo Studio</span>
+    </button>
+    <button class="nav-item" data-tab="backtest-tab" data-tooltip="Backtest Engine">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      <span class="nav-label">Backtest</span>
+    </button>
+
+    <div class="nav-section-label" style="margin-top:1.5rem">ACCOUNTS</div>
+    <button class="nav-item" data-tab="accounts-tab" data-tooltip="Multi-Account Hub">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span class="nav-label">Accounts</span>
+    </button>
+    <button class="nav-item" data-tab="risk-tab" data-tooltip="Risk Guard">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span class="nav-label">Risk Guard</span>
+    </button>
+
+    <div class="nav-section-label" style="margin-top:1.5rem">DATA</div>
+    <button class="nav-item" data-tab="logs-tab" data-tooltip="Order Logs">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span class="nav-label">Order Logs</span>
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="market-status">
+      <div class="status-dot" id="globalStatusDot"></div>
+      <div class="status-info">
+        <span class="status-label" id="globalStatusLabel">NSE Live Feed</span>
+        <span class="status-sub" id="globalStatusSub">Connecting…</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN CONTENT AREA
+════════════════════════════════════════════════════════════════════ -->
+<div class="app-shell">
+
+  <!-- TOP HEADER BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <!-- Instrument Selector -->
+      <div class="instrument-selector" id="instrumentSelectorBtn">
+        <div class="inst-symbol" id="topbarSymbol">NIFTY50</div>
+        <div class="inst-name" id="topbarSymbolName">Nifty 50 Index Futures</div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+
+      <!-- Live Price Strip -->
+      <div class="price-strip">
+        <span class="price-main" id="topbarPrice">--</span>
+        <div class="price-delta-group">
+          <span class="price-delta" id="topbarDelta">--</span>
+          <span class="price-delta-pct" id="topbarDeltaPct">--%</span>
+        </div>
+      </div>
+
+      <!-- OHLV Stats -->
+      <div class="ohlv-strip">
+        <div class="ohlv-item"><span class="ohlv-label">O</span><span class="ohlv-val" id="topbarOpen">--</span></div>
+        <div class="ohlv-item"><span class="ohlv-label">H</span><span class="ohlv-val hi" id="topbarHigh">--</span></div>
+        <div class="ohlv-item"><span class="ohlv-label">L</span><span class="ohlv-val lo" id="topbarLow">--</span></div>
+        <div class="ohlv-item"><span class="ohlv-label">24h Vol</span><span class="ohlv-val" id="topbarVol">--</span></div>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Feed Mode Toggle -->
+      <button class="feed-toggle" id="feedToggleBtn">
+        <span class="feed-dot live"></span>
+        <span id="feedModeLabel">NSE LIVE</span>
+      </button>
+
+      <!-- Portfolio Summary -->
+      <div class="portfolio-strip">
+        <div class="port-item">
+          <span class="port-label">Portfolio Equity</span>
+          <span class="port-val green" id="hdrMasterEquity">₹0.00</span>
+        </div>
+        <div class="port-divider"></div>
+        <div class="port-item">
+          <span class="port-label">Unrealized P&amp;L</span>
+          <span class="port-val" id="hdrUnrealizedPnl">₹0.00</span>
+        </div>
+      </div>
+
+      <!-- Kill Switch -->
+      <button class="kill-switch-btn" id="hdrKillSwitchBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        KILL ALL
+      </button>
+    </div>
+  </header>
+
+  <!-- ─── INSTRUMENT DROPDOWN OVERLAY ─── -->
+  <div class="instrument-dropdown" id="instrumentDropdown">
+    <div class="inst-search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="inst-search" id="instSearch" placeholder="Search NSE/BSE symbol…"/>
+    </div>
+    <div class="inst-list" id="instList"></div>
+  </div>
+
+  <!-- ─────────────────────── TAB: TERMINAL ─────────────────────── -->
+  <div class="workspace tab-content active" id="terminal-tab">
+    <div class="terminal-layout">
+
+      <!-- LEFT: WATCHLIST PANEL -->
+      <div class="panel watchlist-panel">
+        <div class="panel-head">
+          <span class="panel-title">NSE Watchlist</span>
+          <div class="tf-group" id="wlTabs">
+            <button class="tf-pill active" data-wl="all">All</button>
+            <button class="tf-pill" data-wl="indices">Index</button>
+            <button class="tf-pill" data-wl="equities">Equity</button>
+          </div>
+        </div>
+        <div class="watchlist" id="watchlistContainer"></div>
+      </div>
+
+      <!-- CENTER: CHART + POSITIONS -->
+      <div class="chart-column">
+        <!-- Chart Toolbar -->
+        <div class="chart-toolbar">
+          <div class="tf-group">
+            <button class="tf-pill active" data-tf="1m">1m</button>
+            <button class="tf-pill" data-tf="5m">5m</button>
+            <button class="tf-pill" data-tf="15m">15m</button>
+            <button class="tf-pill" data-tf="1h">1h</button>
+            <button class="tf-pill" data-tf="1d">1D</button>
+          </div>
+          <div class="chart-type-group">
+            <button class="chart-type-btn active" data-type="candle" title="Candlestick">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="4" height="12"/><line x1="6" y1="2" x2="6" y2="6"/><line x1="6" y1="18" x2="6" y2="22"/><rect x="16" y="4" width="4" height="9"/><line x1="18" y1="2" x2="18" y2="4"/><line x1="18" y1="13" x2="18" y2="22"/></svg>
+            </button>
+            <button class="chart-type-btn" data-type="line" title="Line">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </button>
+          </div>
+          <div class="indicator-pills">
+            <button class="ind-pill active" data-ind="sma" id="toggleSMA">SMA</button>
+            <button class="ind-pill active" data-ind="ema" id="toggleEMA">EMA</button>
+            <button class="ind-pill active" data-ind="vwap" id="toggleVWAP">VWAP</button>
+            <button class="ind-pill" data-ind="bb" id="toggleBB">BB</button>
+          </div>
+        </div>
+
+        <!-- Main Chart Canvas -->
+        <div class="chart-wrap" id="chartWrap">
+          <canvas id="candlestickCanvas"></canvas>
+          <!-- Chart Crosshair Info -->
+          <div class="chart-crosshair-info" id="crosshairInfo" style="display:none">
+            <span id="ciTime"></span>
+            <span>O: <b id="ciOpen"></b></span>
+            <span>H: <b id="ciHigh" class="hi"></b></span>
+            <span>L: <b id="ciLow" class="lo"></b></span>
+            <span>C: <b id="ciClose"></b></span>
+            <span>Vol: <b id="ciVol"></b></span>
+          </div>
+          <!-- Volume Canvas -->
+          <canvas id="volumeCanvas" class="volume-canvas"></canvas>
+          <!-- RSI Sub-chart -->
+          <div class="subchart-wrap" id="rsiPanel">
+            <div class="subchart-label">RSI (14)</div>
+            <canvas id="rsiCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Open Positions Bar -->
+        <div class="positions-bar">
+          <div class="panel-head" style="padding:0.6rem 1rem">
+            <span class="panel-title" style="font-size:0.8rem">Open Positions</span>
+            <span class="pos-count-badge" id="posCountBadge">0</span>
+          </div>
+          <div class="positions-table-wrap">
+            <table class="data-table positions-table">
+              <thead><tr>
+                <th>Account</th><th>Symbol</th><th>Side</th>
+                <th>Qty</th><th>Entry</th><th>Live Price</th>
+                <th>P&amp;L</th><th>Actions</th>
+              </tr></thead>
+              <tbody id="positionsTableBody"><tr class="empty-row"><td colspan="8">No open positions</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: ORDER TICKET + DOM -->
+      <div class="right-column">
+        <!-- Order Ticket -->
+        <div class="panel order-ticket">
+          <div class="panel-head">
+            <span class="panel-title">Order Ticket</span>
+            <div class="mode-badge-group">
+              <span class="mode-badge paper" id="ticketModeBadge">PAPER</span>
+            </div>
+          </div>
+
+          <div class="ticket-body">
+            <div class="ticket-field">
+              <label>Account</label>
+              <select class="ticket-select" id="ticketAccountSelect"></select>
+            </div>
+            <div class="ticket-field">
+              <label>Symbol</label>
+              <input class="ticket-input" id="ticketSymbol" value="NIFTY50" readonly/>
+            </div>
+            <div class="ticket-row">
+              <div class="ticket-field">
+                <label>Order Type</label>
+                <select class="ticket-select" id="ticketOrderType">
+                  <option>MARKET</option>
+                  <option>LIMIT</option>
+                  <option>SL-MARKET</option>
+                </select>
+              </div>
+              <div class="ticket-field">
+                <label>Quantity</label>
+                <input class="ticket-input" type="number" id="ticketQuantity" value="10" min="1"/>
+              </div>
+            </div>
+            <div class="ticket-row">
+              <div class="ticket-field">
+                <label>Stop Loss %</label>
+                <input class="ticket-input" type="number" step="0.1" id="ticketSL" value="1.5" placeholder="1.5"/>
+              </div>
+              <div class="ticket-field">
+                <label>Take Profit %</label>
+                <input class="ticket-input" type="number" step="0.1" id="ticketTP" value="3.0" placeholder="3.0"/>
+              </div>
+            </div>
+            <div class="ticket-field">
+              <label>Est. Value</label>
+              <div class="estimated-val" id="estValue">₹0.00</div>
+            </div>
+            <div class="order-btns">
+              <button class="btn-buy" id="btnBuyMarket">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                BUY / LONG
+              </button>
+              <button class="btn-sell" id="btnSellMarket">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                SELL / SHORT
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- DOM: Depth of Market -->
+        <div class="panel dom-panel">
+          <div class="panel-head">
+            <span class="panel-title">Depth of Market</span>
+            <span class="panel-subtitle" id="domSymbolLabel">—</span>
+          </div>
+          <div class="dom-body">
+            <div class="dom-header">
+              <span>Bid Vol</span><span>Bid</span><span>Ask</span><span>Ask Vol</span>
+            </div>
+            <div class="dom-rows" id="domRows"></div>
+            <div class="dom-spread-row">
+              <span class="dom-spread-label">Spread</span>
+              <span class="dom-spread-val" id="domSpread">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── TAB: ALGO STUDIO ─────────────────────── -->
+  <div class="workspace tab-content" id="algo-tab">
+    <div class="algo-layout">
+      <!-- Strategy Library -->
+      <div class="panel algo-library">
+        <div class="panel-head">
+          <span class="panel-title">Strategy Library</span>
+          <span class="panel-subtitle">Auto-Execution Engine</span>
+        </div>
+        <div class="algo-cards" id="algoPresetsContainer"></div>
+      </div>
+
+      <!-- Active Strategies Monitor -->
+      <div class="panel algo-monitor">
+        <div class="panel-head">
+          <span class="panel-title">Live Strategy Monitor</span>
+          <span class="algo-count-badge" id="activeAlgoCount">0 Active</span>
+        </div>
+        <div class="algo-monitor-body" id="algoMonitorBody">
+          <div class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>No active strategies running</p>
+            <span>Select a strategy from the library and activate it</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── TAB: BACKTEST ─────────────────────── -->
+  <div class="workspace tab-content" id="backtest-tab">
+    <div class="backtest-layout">
+      <!-- Config Panel -->
+      <div class="panel bt-config">
+        <div class="panel-head">
+          <span class="panel-title">Backtest Configuration</span>
+        </div>
+        <div class="bt-form">
+          <div class="ticket-field">
+            <label>Symbol</label>
+            <select class="ticket-select" id="btSymbolSelect">
+              <option value="NIFTY50">NIFTY50</option>
+              <option value="BANKNIFTY">BANKNIFTY</option>
+              <option value="RELIANCE">RELIANCE</option>
+              <option value="TCS">TCS</option>
+              <option value="HDFCBANK">HDFCBANK</option>
+              <option value="INFY">INFY</option>
+            </select>
+          </div>
+          <div class="ticket-field">
+            <label>Strategy</label>
+            <select class="ticket-select" id="btStrategySelect">
+              <option value="MA_CROSSOVER">Moving Average Crossover</option>
+              <option value="RSI_REVERSION">RSI Mean Reversion</option>
+              <option value="BREAKOUT">High/Low Breakout</option>
+              <option value="VWAP_TREND">VWAP Trend Following</option>
+            </select>
+          </div>
+          <div class="ticket-field">
+            <label>Timeframe</label>
+            <select class="ticket-select" id="btTimeframeSelect">
+              <option value="5m">5m</option>
+              <option value="15m" selected>15m</option>
+              <option value="1h">1h</option>
+            </select>
+          </div>
+          <div class="ticket-field">
+            <label>Initial Capital (₹)</label>
+            <input class="ticket-input" type="number" id="btCapital" value="1000000"/>
+          </div>
+          <button class="btn-primary full-width" id="btnRunBacktest">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Run Backtest
+          </button>
+        </div>
+      </div>
+
+      <!-- Results Panel -->
+      <div class="panel bt-results">
+        <!-- Metrics Row -->
+        <div class="bt-metrics-row" id="btMetricsRow">
+          <div class="bt-metric">
+            <span class="btm-label">Net Profit</span>
+            <span class="btm-val green" id="btNetProfit">—</span>
+          </div>
+          <div class="bt-metric">
+            <span class="btm-label">Return %</span>
+            <span class="btm-val" id="btReturn">—</span>
+          </div>
+          <div class="bt-metric">
+            <span class="btm-label">Win Rate</span>
+            <span class="btm-val" id="btWinRate">—</span>
+          </div>
+          <div class="bt-metric">
+            <span class="btm-label">Profit Factor</span>
+            <span class="btm-val" id="btProfitFactor">—</span>
+          </div>
+          <div class="bt-metric">
+            <span class="btm-label">Max Drawdown</span>
+            <span class="btm-val red" id="btMaxDrawdown">—</span>
+          </div>
+          <div class="bt-metric">
+            <span class="btm-label">Total Trades</span>
+            <span class="btm-val" id="btTotalTrades">—</span>
+          </div>
+        </div>
+
+        <!-- Equity Curve Chart -->
+        <div class="equity-curve-wrap">
+          <div class="equity-legend">
+            <span class="eq-dot green"></span> Equity Curve
+            <span class="eq-dot blue" style="margin-left:1rem"></span> Drawdown
+          </div>
+          <canvas id="equityCanvas"></canvas>
+        </div>
+
+        <!-- Trade Log Table -->
+        <div class="bt-trades-header">
+          <span class="panel-title" style="font-size:0.85rem">Trade Log</span>
+        </div>
+        <div style="overflow-y:auto;max-height:220px">
+          <table class="data-table">
+            <thead><tr>
+              <th>Entry Time</th><th>Exit Time</th><th>Side</th>
+              <th>Entry Price</th><th>Exit Price</th><th>P&amp;L</th><th>Return %</th>
+            </tr></thead>
+            <tbody id="btTradesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── TAB: ACCOUNTS ─────────────────────── -->
+  <div class="workspace tab-content" id="accounts-tab">
+    <div class="accounts-header">
+      <div>
+        <h2 class="section-title">Multi-Account Hub</h2>
+        <p class="section-sub">Master-Child Trade Copier for Indian Brokers (Zerodha, AngelOne, Upstox, Dhan)</p>
+      </div>
+      <button class="btn-primary" id="btnAddAccountBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Connect Broker Account
+      </button>
+    </div>
+    <div class="accounts-grid" id="accountsGridContainer"></div>
+  </div>
+
+  <!-- ─────────────────────── TAB: RISK GUARD ─────────────────────── -->
+  <div class="workspace tab-content" id="risk-tab">
+    <div class="risk-layout">
+      <!-- Rules Config -->
+      <div class="panel risk-config">
+        <div class="panel-head">
+          <span class="panel-title">Risk Parameters</span>
+          <button class="btn-small" id="btnSaveRiskRules">Save Changes</button>
+        </div>
+        <div class="risk-form">
+          <div class="risk-rule-card">
+            <div class="rrcard-icon red">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="rrcard-body">
+              <label>Max Daily Loss Circuit Breaker</label>
+              <p>Triggers Emergency Kill Switch automatically when this threshold is breached.</p>
+              <div class="rrcard-input-row">
+                <span class="currency-prefix">₹</span>
+                <input class="ticket-input" type="number" id="riskMaxDailyLoss" value="25000"/>
+              </div>
+            </div>
+          </div>
+          <div class="risk-rule-card">
+            <div class="rrcard-icon orange">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div class="rrcard-body">
+              <label>Max Position Size</label>
+              <p>Maximum capital allowed per single trade position across all accounts.</p>
+              <div class="rrcard-input-row">
+                <span class="currency-prefix">₹</span>
+                <input class="ticket-input" type="number" id="riskMaxPosSize" value="500000"/>
+              </div>
+            </div>
+          </div>
+          <div class="risk-rule-card">
+            <div class="rrcard-icon green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div class="rrcard-body">
+              <label>Default Stop Loss / Take Profit</label>
+              <p>Applied to all new orders unless overridden in the order ticket.</p>
+              <div class="rrcard-input-row" style="gap:1rem">
+                <div>
+                  <div style="font-size:0.7rem;color:var(--red);margin-bottom:0.25rem">SL %</div>
+                  <input class="ticket-input" type="number" step="0.1" id="riskStopLossPct" value="1.5" style="width:80px"/>
+                </div>
+                <div>
+                  <div style="font-size:0.7rem;color:var(--green);margin-bottom:0.25rem">TP %</div>
+                  <input class="ticket-input" type="number" step="0.1" id="riskTakeProfitPct" value="3.0" style="width:80px"/>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kill Switch + Audit Panel -->
+      <div class="risk-right-col">
+        <div class="panel kill-switch-panel">
+          <div class="ks-header">
+            <div class="ks-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <div>
+              <h3>Emergency Kill Switch</h3>
+              <p>Liquidates all positions globally &amp; halts all algorithms instantly.</p>
+            </div>
+          </div>
+          <div class="ks-actions">
+            <button class="btn-kill-big" id="tabTriggerKillBtn">
+              <span class="kill-pulse"></span>
+              ACTIVATE EMERGENCY LIQUIDATION
+            </button>
+            <button class="btn-reset-kill" id="tabResetKillBtn">Reset Kill Switch</button>
+          </div>
+          <div class="ks-status" id="ksStatus">
+            <div class="ks-status-dot safe"></div>
+            <span>Kill Switch Inactive — Trading Allowed</span>
+          </div>
+        </div>
+
+        <div class="panel audit-panel">
+          <div class="panel-head">
+            <span class="panel-title">Risk Audit Feed</span>
+            <span class="panel-subtitle" id="auditCount">0 alerts</span>
+          </div>
+          <div class="audit-feed" id="riskAlertsFeed">
+            <div class="empty-state" style="padding:1.5rem 0">
+              <p style="font-size:0.8rem">No risk events recorded</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── TAB: ORDER LOGS ─────────────────────── -->
+  <div class="workspace tab-content" id="logs-tab">
+    <div class="logs-header">
+      <div>
+        <h2 class="section-title">Execution Audit Log</h2>
+        <p class="section-sub">Complete real-time order history across all Master &amp; Child accounts</p>
+      </div>
+      <div class="logs-filters">
+        <select class="ticket-select" id="logsFilterSide">
+          <option value="all">All Sides</option>
+          <option value="BUY">BUY Only</option>
+          <option value="SELL">SELL Only</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel" style="overflow:hidden">
+      <div style="overflow-x:auto">
+        <table class="data-table logs-table">
+          <thead><tr>
+            <th>Time</th><th>Order ID</th><th>Account</th>
+            <th>Symbol</th><th>Side</th><th>Qty</th>
+            <th>Price</th><th>Strategy</th><th>Child Copies</th><th>Status</th>
+          </tr></thead>
+          <tbody id="orderLogsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /.app-shell -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MODALS
+════════════════════════════════════════════════════════════════════ -->
+<!-- Add Account Modal -->
+<div class="modal-backdrop" id="accountModal">
+  <div class="modal-card" style="max-width:520px">
+    <div class="modal-header">
+      <h3>Connect Broker Account</h3>
+      <button class="modal-close" id="btnCloseAccModal">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-grid">
+        <div class="ticket-field">
+          <label>Account Name</label>
+          <input class="ticket-input" id="newAccName" placeholder="e.g. Zerodha Master Account"/>
+        </div>
+        <div class="ticket-field">
+          <label>Type</label>
+          <select class="ticket-select" id="newAccType">
+            <option value="Child">Child — Mirror Master Trades</option>
+            <option value="Master">Master — Trade Driver</option>
+          </select>
+        </div>
+        <div class="ticket-field">
+          <label>Broker Integration</label>
+          <select class="ticket-select" id="newAccBroker">
+            <option value="Zerodha Kite Connect">Zerodha Kite Connect (NSE/BSE)</option>
+            <option value="AngelOne SmartAPI">AngelOne SmartAPI (NSE/BSE)</option>
+            <option value="Upstox API">Upstox API (NSE/BSE)</option>
+            <option value="Dhan API">Dhan API (NSE/BSE)</option>
+            <option value="Groww API">Groww API (NSE/BSE)</option>
+            <option value="ICICI Direct / Kotak Neo">ICICI Direct / Kotak Neo (NSE/BSE)</option>
+            <option value="Paper Simulator">Paper Trading Simulator (NSE)</option>
+          </select>
+        </div>
+        <div class="ticket-field">
+          <label>Mode</label>
+          <select class="ticket-select" id="newAccMode">
+            <option value="Paper">Paper Simulation</option>
+            <option value="Live">Live Real Execution</option>
+          </select>
+        </div>
+        <div class="ticket-field">
+          <label>Initial Balance (₹)</label>
+          <input class="ticket-input" type="number" id="newAccBalance" value="500000"/>
+        </div>
+        <div class="ticket-field">
+          <label>Lot Multiplier (Child Only)</label>
+          <input class="ticket-input" type="number" step="0.1" id="newAccMultiplier" value="1.0"/>
+        </div>
+        <div class="ticket-field" style="grid-column:1/-1">
+          <label>API Key</label>
+          <input class="ticket-input" id="newAccApiKey" placeholder="Enter Broker API Key"/>
+        </div>
+        <div class="ticket-field" style="grid-column:1/-1">
+          <label>API Secret</label>
+          <input class="ticket-input" type="password" id="newAccApiSecret" placeholder="••••••••••••••••"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="btnCancelAddAcc">Cancel</button>
+      <button class="btn-primary" id="btnSubmitAddAccount">Save &amp; Connect Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notification Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
