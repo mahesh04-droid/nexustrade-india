@@ -170,6 +170,34 @@ function setupListeners() {
     }
   });
 
+  // Mobile Dropdown Menu Toggle & Handlers
+  const mmBtn   = document.getElementById('mobileMenuBtn');
+  const mmDrawer= document.getElementById('mobileMenuDrawer');
+  const mmClose = document.getElementById('mobileMenuClose');
+
+  mmBtn?.addEventListener('click', () => mmDrawer?.classList.toggle('open'));
+  mmClose?.addEventListener('click', () => mmDrawer?.classList.remove('open'));
+
+  document.querySelectorAll('.mm-nav-item[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      document.querySelectorAll('.nav-item[data-tab]').forEach(b => {
+        if (b.dataset.tab === tabId) b.click();
+      });
+      mmDrawer?.classList.remove('open');
+    });
+  });
+
+  document.getElementById('mmBtnDemo')?.addEventListener('click', () => {
+    document.getElementById('btnLaunchDemoShowcase')?.click();
+    mmDrawer?.classList.remove('open');
+  });
+
+  document.getElementById('mmBtnAddAccount')?.addEventListener('click', () => {
+    openModal('accountModal');
+    mmDrawer?.classList.remove('open');
+  });
+
   // Feed Toggle
   document.getElementById('feedToggleBtn')?.addEventListener('click', toggleMarketMode);
 
