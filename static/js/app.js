@@ -1,11 +1,9 @@
 /**
- * NexusTrade — Professional Trading Platform
+ * NexusTrade India — Professional Trading Platform
  * Frontend Application Engine v3.0
  */
 
 'use strict';
-
-document.addEventListener('DOMContentLoaded', () => {
 
 // ═══════════════════════════════════════════════════════════════
 //  APP STATE
@@ -31,24 +29,30 @@ const state = {
 };
 
 // Canvas references
-const C = {
-  candle: document.getElementById('candlestickCanvas'),
-  volume: document.getElementById('volumeCanvas'),
-  rsi:    document.getElementById('rsiCanvas'),
-  equity: document.getElementById('equityCanvas'),
-};
+let C = {};
+let ctx = {};
 
-const ctx = {
-  candle: C.candle?.getContext('2d'),
-  volume: C.volume?.getContext('2d'),
-  rsi:    C.rsi?.getContext('2d'),
-  equity: C.equity?.getContext('2d'),
-};
+function initCanvases() {
+  C = {
+    candle: document.getElementById('candlestickCanvas'),
+    volume: document.getElementById('volumeCanvas'),
+    rsi:    document.getElementById('rsiCanvas'),
+    equity: document.getElementById('equityCanvas'),
+  };
+
+  ctx = {
+    candle: C.candle?.getContext('2d'),
+    volume: C.volume?.getContext('2d'),
+    rsi:    C.rsi?.getContext('2d'),
+    equity: C.equity?.getContext('2d'),
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  INITIALIZATION
 // ═══════════════════════════════════════════════════════════════
 function init() {
+  initCanvases();
   setupNav();
   setupListeners();
   setupChartResize();
@@ -61,7 +65,7 @@ function init() {
   fetchRiskStatus();
   fetchOrderHistory();
 
-  // Live data refresh loop
+  // Live data refresh loop (poll every 2s)
   setInterval(refreshLive, 2000);
 }
 
@@ -112,7 +116,7 @@ function setupListeners() {
     });
   });
 
-  // Watchlist timeframe filter tabs
+  // Watchlist filter tabs
   document.querySelectorAll('#wlTabs .tf-pill').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#wlTabs .tf-pill').forEach(b => b.classList.remove('active'));
@@ -147,7 +151,6 @@ function setupListeners() {
 
   // Estimate value live update
   document.getElementById('ticketQuantity')?.addEventListener('input', updateEstimate);
-  document.getElementById('ticketSymbol')?.addEventListener('change', updateEstimate);
 
   // Kill Switch
   document.getElementById('hdrKillSwitchBtn')?.addEventListener('click', triggerKillSwitch);
@@ -175,7 +178,8 @@ function setupListeners() {
   // Chart canvas mouse move (crosshair)
   C.candle?.addEventListener('mousemove', onChartMouseMove);
   C.candle?.addEventListener('mouseleave', () => {
-    document.getElementById('crosshairInfo').style.display = 'none';
+    const info = document.getElementById('crosshairInfo');
+    if (info) info.style.display = 'none';
   });
 }
 
@@ -184,14 +188,16 @@ function setupListeners() {
 // ═══════════════════════════════════════════════════════════════
 function setupChartResize() {
   const ro = new ResizeObserver(() => resizeCanvases());
-  document.getElementById('chartWrap') && ro.observe(document.getElementById('chartWrap'));
-  document.querySelector('.equity-curve-wrap') && ro.observe(document.querySelector('.equity-curve-wrap'));
+  const wrap = document.getElementById('chartWrap');
+  if (wrap) ro.observe(wrap);
+  const ewrap = document.querySelector('.equity-curve-wrap');
+  if (ewrap) ro.observe(ewrap);
 }
 
 function resizeCanvases() {
   const wrap = document.getElementById('chartWrap');
   if (wrap && C.candle) {
-    const h = wrap.clientHeight - 130; // leave room for volume + RSI
+    const h = wrap.clientHeight - 130;
     C.candle.width  = wrap.clientWidth;
     C.candle.height = Math.max(h, 200);
     if (C.volume) { C.volume.width = wrap.clientWidth; C.volume.height = 50; }
@@ -235,7 +241,7 @@ async function toggleMarketMode() {
   updateFeedUI();
   toast(data.mode === 'LIVE' ? 'success' : 'info',
         'Market Feed',
-        data.mode === 'LIVE' ? 'Switched to Real-Time Live Exchange data' : 'Switched to Simulated market mode');
+        data.mode === 'LIVE' ? 'Switched to Direct Official NSE Live Feed' : 'Switched to Simulated market mode');
   fetchAssets();
   fetchCandles();
 }
@@ -250,15 +256,15 @@ function updateFeedUI() {
 
   if (state.marketMode === 'LIVE') {
     btn?.classList.remove('simulated');
-    if (dot) { dot.className = 'feed-dot live'; }
+    if (dot) dot.className = 'feed-dot live';
     if (lbl) lbl.textContent = 'NSE LIVE';
-    if (sb) sb.textContent = 'NSE Feed';
-    if (sbs) sbs.textContent = 'NSE India · Yahoo Finance';
+    if (sb) sb.textContent = 'NSE Live Feed';
+    if (sbs) sbs.textContent = 'Official NSE India Direct';
     sdot?.classList.remove('offline');
     state.liveConnected = true;
   } else {
     btn?.classList.add('simulated');
-    if (dot) { dot.className = 'feed-dot sim'; }
+    if (dot) dot.className = 'feed-dot sim';
     if (lbl) lbl.textContent = 'SIMULATED';
     if (sb) sb.textContent = 'Simulated';
     if (sbs) sbs.textContent = 'Synthetic Engine';
@@ -333,10 +339,12 @@ function updateTopbar() {
   const asset = state.assets.find(a => a.symbol === state.selectedSymbol);
   if (!asset) return;
 
-  document.getElementById('topbarSymbol').textContent    = asset.symbol;
-  document.getElementById('topbarSymbolName').textContent = asset.name;
+  const symEl  = document.getElementById('topbarSymbol');
+  const nameEl = document.getElementById('topbarSymbolName');
+  if (symEl)  symEl.textContent  = asset.symbol;
+  if (nameEl) nameEl.textContent = asset.name;
 
-  const p = asset.price;
+  const p = asset.price || 0;
   const chg = asset.change_pct || 0;
   const priceEl = document.getElementById('topbarPrice');
   const deltaEl = document.getElementById('topbarDelta');
@@ -345,33 +353,49 @@ function updateTopbar() {
   const absDelta = Math.abs((p * chg / 100)).toFixed(asset.decimals || 2);
   const sign = chg >= 0 ? '+' : '-';
 
-  priceEl.textContent    = `₹${p.toLocaleString(undefined, {minimumFractionDigits: asset.decimals||2})}`;
-  priceEl.style.color    = chg >= 0 ? 'var(--green)' : 'var(--red)';
-  deltaEl.textContent    = `${sign}₹${absDelta}`;
-  deltaEl.style.color    = chg >= 0 ? 'var(--green)' : 'var(--red)';
-  deltaPctEl.textContent = `${sign}${Math.abs(chg).toFixed(2)}%`;
-  deltaPctEl.style.color = chg >= 0 ? 'var(--green)' : 'var(--red)';
+  if (priceEl) {
+    priceEl.textContent = `₹${p.toLocaleString(undefined, {minimumFractionDigits: asset.decimals||2})}`;
+    priceEl.style.color = chg >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  if (deltaEl) {
+    deltaEl.textContent = `${sign}₹${absDelta}`;
+    deltaEl.style.color = chg >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+  if (deltaPctEl) {
+    deltaPctEl.textContent = `${sign}${Math.abs(chg).toFixed(2)}%`;
+    deltaPctEl.style.color = chg >= 0 ? 'var(--green)' : 'var(--red)';
+  }
 
   if (state.candles.length > 0) {
     const today = state.candles.slice(-60);
     const first = today[0];
-    document.getElementById('topbarOpen').textContent = `₹${first.open.toFixed(asset.decimals||2)}`;
-    document.getElementById('topbarHigh').textContent = `₹${Math.max(...today.map(c=>c.high)).toFixed(asset.decimals||2)}`;
-    document.getElementById('topbarLow').textContent  = `₹${Math.min(...today.map(c=>c.low)).toFixed(asset.decimals||2)}`;
-    const vol = today.reduce((s,c) => s + c.volume, 0);
-    document.getElementById('topbarVol').textContent  = vol > 1e6 ? `${(vol/1e6).toFixed(1)}M` : `${(vol/1e3).toFixed(0)}K`;
+    const openEl = document.getElementById('topbarOpen');
+    const highEl = document.getElementById('topbarHigh');
+    const lowEl  = document.getElementById('topbarLow');
+    const volEl  = document.getElementById('topbarVol');
+
+    if (openEl) openEl.textContent = `₹${first.open.toFixed(asset.decimals||2)}`;
+    if (highEl) highEl.textContent = `₹${Math.max(...today.map(c=>c.high)).toFixed(asset.decimals||2)}`;
+    if (lowEl)  lowEl.textContent  = `₹${Math.min(...today.map(c=>c.low)).toFixed(asset.decimals||2)}`;
+    
+    const vol = today.reduce((s,c) => s + (c.volume || 0), 0);
+    if (volEl) volEl.textContent = vol > 1e6 ? `${(vol/1e6).toFixed(1)}M` : `${(vol/1e3).toFixed(0)}K`;
   }
 }
 
 function updatePortfolioStrip() {
-  const master = state.accounts.find(a => a.type === 'Master');
+  const master = state.accounts.find(a => a.type === 'Master') || state.accounts[0];
   if (!master) return;
-  const eq = master.total_equity ?? master.balance;
+  const eq = master.total_equity ?? master.balance ?? 0;
   const pnl = master.unrealized_pnl ?? 0;
-  document.getElementById('hdrMasterEquity').textContent = `₹${eq.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+  const eqEl = document.getElementById('hdrMasterEquity');
   const pnlEl = document.getElementById('hdrUnrealizedPnl');
-  pnlEl.textContent = `${pnl >= 0 ? '+' : ''}₹${pnl.toFixed(2)}`;
-  pnlEl.className = `port-val ${pnl >= 0 ? 'green' : 'red'}`;
+
+  if (eqEl)  eqEl.textContent  = `₹${eq.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+  if (pnlEl) {
+    pnlEl.textContent = `${pnl >= 0 ? '+' : ''}₹${pnl.toFixed(2)}`;
+    pnlEl.className   = `port-val ${pnl >= 0 ? 'green' : 'red'}`;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -406,7 +430,8 @@ function renderWatchlist(filter = 'all') {
 
 window.selectSymbol = (symbol) => {
   state.selectedSymbol = symbol;
-  document.getElementById('ticketSymbol').value = symbol;
+  const ticketInput = document.getElementById('ticketSymbol');
+  if (ticketInput) ticketInput.value = symbol;
   renderWatchlist();
   fetchCandles();
   updateTopbar();
@@ -434,7 +459,7 @@ function renderInstrumentDropdown(filter = '') {
           <span class="inst-row-name">${a.name}</span>
         </div>
         <span class="inst-row-cat">${a.category}</span>
-        <span class="inst-row-price ${chg>=0?'green':'red'}">${a.price?.toFixed(a.decimals||2)}</span>
+        <span class="inst-row-price ${chg>=0?'green':'red'}">₹${a.price?.toFixed(a.decimals||2)}</span>
       </div>`;
   }).join('');
 }
@@ -458,7 +483,6 @@ function renderCandleChart() {
   const N = candles.length;
   if (N === 0) return;
 
-  // Price range
   let lo = Math.min(...candles.map(c => c.low));
   let hi = Math.max(...candles.map(c => c.high));
   const range = hi - lo || 1;
@@ -473,10 +497,7 @@ function renderCandleChart() {
   const toY = p => PAD.top + chartH - ((p - lo) / (hi - lo)) * chartH;
   const toX = i => PAD.left + i * (cw + gap) + cw / 2;
 
-  // Clear
   cx.clearRect(0, 0, W, H);
-
-  // Background
   cx.fillStyle = '#070a10';
   cx.fillRect(0, 0, W, H);
 
@@ -491,7 +512,7 @@ function renderCandleChart() {
     cx.fillStyle = '#4c5a72';
     cx.font = '10px JetBrains Mono, monospace';
     cx.textAlign = 'left';
-    cx.fillText(pv.toFixed(2), W - PAD.right + 6, y + 4);
+    cx.fillText(`₹${pv.toFixed(2)}`, W - PAD.right + 6, y + 4);
   }
 
   // Indicators — SMA
@@ -532,12 +553,10 @@ function renderCandleChart() {
       const bodyH = Math.max(Math.abs(cY - oY), 1.5);
       const bodyY = Math.min(oY, cY);
 
-      // Wick
       cx.strokeStyle = green ? 'rgba(16,217,130,0.6)' : 'rgba(244,63,94,0.6)';
       cx.lineWidth = 1;
       cx.beginPath(); cx.moveTo(x, hY); cx.lineTo(x, lY); cx.stroke();
 
-      // Body
       if (green) {
         cx.strokeStyle = col;
         cx.lineWidth = 1;
@@ -551,10 +570,7 @@ function renderCandleChart() {
     });
   }
 
-  // Volume sub-chart
   renderVolumeChart(candles, N, toX, cw);
-
-  // RSI sub-chart
   renderRSIChart(state.indData.rsi_14?.slice(-N) || [], N, toX);
 }
 
@@ -613,14 +629,12 @@ function renderRSIChart(rsiVals, N, toX) {
   const PAD_R = 65, PAD_L = 8;
   rcx.clearRect(0, 0, W, H);
 
-  // Background
   rcx.fillStyle = '#0c1018';
   rcx.fillRect(0, 0, W, H);
 
   const toRX = i => PAD_L + i * ((W - PAD_L - PAD_R) / N);
   const toRY = v => H - (v / 100) * H;
 
-  // OB / OS lines
   [[70, 'rgba(244,63,94,0.2)'], [30, 'rgba(16,217,130,0.2)'], [50, 'rgba(255,255,255,0.05)']].forEach(([v, c]) => {
     rcx.strokeStyle = c;
     rcx.lineWidth = 1;
@@ -629,7 +643,6 @@ function renderRSIChart(rsiVals, N, toX) {
     rcx.setLineDash([]);
   });
 
-  // RSI Line
   rcx.strokeStyle = '#8b5cf6';
   rcx.lineWidth = 1.5;
   rcx.beginPath();
@@ -640,7 +653,6 @@ function renderRSIChart(rsiVals, N, toX) {
   });
   rcx.stroke();
 
-  // Labels
   rcx.fillStyle = '#4c5a72';
   rcx.font = '9px JetBrains Mono';
   rcx.textAlign = 'left';
@@ -661,72 +673,74 @@ function onChartMouseMove(e) {
   const rect = C.candle.getBoundingClientRect();
   const x = (e.clientX - rect.left) * (C.candle.width / rect.width);
   const N = Math.min(state.candles.length, 100);
-  const cw = (function updateEstimate() {
-  const qty = parseFloat(document.getElementById('ticketQuantity')?.value) || 0;
-  const asset = state.assets.find(a => a.symbol === state.selectedSymbol);
-  const price = asset?.price || 0;
-  const est = qty * price;
-  const el = document.getElementById('estValue');
-  if (el) el.textContent = `₹${est.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+  const cw = (C.candle.width / N) * 0.65;
+  const gap = (C.candle.width / N) * 0.35;
+  const idx = Math.floor(x / (cw + gap));
+  const candles = state.candles.slice(-N);
+  if (idx < 0 || idx >= candles.length) return;
+
+  const c = candles[idx];
+  const info = document.getElementById('crosshairInfo');
+  const tEl = document.getElementById('ciTime');
+  const oEl = document.getElementById('ciOpen');
+  const hEl = document.getElementById('ciHigh');
+  const lEl = document.getElementById('ciLow');
+  const cEl = document.getElementById('ciClose');
+  const vEl = document.getElementById('ciVol');
+
+  if (tEl) tEl.textContent = c.time_str || '';
+  if (oEl) oEl.textContent = `₹${c.open}`;
+  if (hEl) hEl.textContent = `₹${c.high}`;
+  if (lEl) lEl.textContent = `₹${c.low}`;
+  if (cEl) cEl.textContent = `₹${c.close}`;
+  if (vEl) vEl.textContent = c.volume?.toLocaleString() || '';
+  if (info) info.style.display = 'flex';
 }
 
-async function placeOrder(side) {
-  const accId  = document.getElementById('ticketAccountSelect')?.value;
-  const symbol = state.selectedSymbol;
-  const qty    = parseInt(document.getElementById('ticketQuantity')?.value) || 1;
-  const type   = document.getElementById('ticketOrderType')?.value || 'MARKET';
+// ═══════════════════════════════════════════════════════════════
+//  DOM (Depth of Market)
+// ═══════════════════════════════════════════════════════════════
+function renderDOM() {
+  const rows = document.getElementById('domRows');
+  const spreadEl = document.getElementById('domSpread');
+  const labelEl  = document.getElementById('domSymbolLabel');
+  if (!rows) return;
 
-  const data = await api('/api/orders/place', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({account_id:accId, symbol, side, quantity:qty, type, strategy:'Manual Terminal'})
-  });
+  if (labelEl) labelEl.textContent = state.selectedSymbol;
+  const bids = state.dom.bids || [];
+  const asks = state.dom.asks || [];
 
-  if (data?.status === 'SUCCESS') {
-    const copyCnt = data.order?.copied_orders?.length || 0;
-    toast('success', `Order Executed`, `${side} ${qty}× ${symbol} filled${copyCnt ? ` · ${copyCnt} child copies` : ''}`);
-    fetchAccounts();
-    fetchOrderHistory();
-  } else {
-    toast('error', 'Order Rejected', data?.message || 'Unknown error');
+  if (bids.length && asks.length) {
+    const spread = Math.abs(asks[0].price - bids[0].price);
+    if (spreadEl) spreadEl.textContent = `₹${spread.toFixed(2)}`;
   }
+
+  rows.innerHTML = Array.from({length: 5}, (_, i) => {
+    const bid = bids[i] || {price: '—', volume: '—'};
+    const ask = asks[i] || {price: '—', volume: '—'};
+    return `
+      <div class="dom-row">
+        <span class="dom-bid-vol">${bid.volume}</span>
+        <span class="dom-bid-price">${typeof bid.price==='number' ? '₹'+bid.price.toFixed(2) : bid.price}</span>
+        <span class="dom-ask-price">${typeof ask.price==='number' ? '₹'+ask.price.toFixed(2) : ask.price}</span>
+        <span class="dom-ask-vol">${ask.volume}</span>
+      </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  ACCOUNTS GRID
+//  ORDER TICKET
 // ═══════════════════════════════════════════════════════════════
-function renderAccountsGrid() {
-  const grid = document.getElementById('accountsGridContainer');
-  if (!grid) return;
+function renderAccountSelect() {
+  const sel = document.getElementById('ticketAccountSelect');
+  if (!sel) return;
+  sel.innerHTML = state.accounts.map(a =>
+    `<option value="${a.id}">${a.name} (${a.type} · ${a.mode})</option>`
+  ).join('');
+  updateModebadge();
+  sel.addEventListener('change', updateModebadge);
+}
 
-  grid.innerHTML = state.accounts.map(acc => {
-    const pnl = acc.unrealized_pnl ?? 0;
-    const eq  = acc.total_equity   ?? acc.balance;
-    const pnlSign = pnl >= 0 ? '+' : '';
-
-    return `
-      <div class="account-card">
-        <div class="acc-card-header">
-          <div>
-            <div class="acc-name">${acc.name}</div>
-            <div class="acc-id">${acc.id}</div>
-          </div>
-          <div class="acc-badges">
-            <span class="badge badge-${acc.type.toLowerCase()}">${acc.type}</span>
-            <span class="badge badge-${acc.mode.toLowerCase()}">${acc.mode}</span>
-          </div>
-        </div>
-
-        <div class="acc-stats">
-          <div class="acc-stat">
-            <div class="acc-stat-label">Balance</div>
-            <div class="acc-stat-val">₹${(acc.balance||0).toLocaleString(undefined,{minimumFractionDigits:2})}</div>
-          </div>
-          <div class="acc-stat">
-            <div class="acc-stat-label">Total Equity</div>
-            <div class="acc-stat-val">₹${eq.toLocaleString(undefined,{minimumFractionDigits:2})}</div>
-          </div>
-          <div class="acc-stat">
 function updateModebadge() {
   const sel = document.getElementById('ticketAccountSelect');
   const badge = document.getElementById('ticketModeBadge');
@@ -803,7 +817,7 @@ function renderAccountsGrid() {
             <div class="acc-stat-val">₹${eq.toLocaleString(undefined,{minimumFractionDigits:2})}</div>
           </div>
           <div class="acc-stat">
-            <div class="acc-stat-label">Unrealized P&L</div>
+            <div class="acc-stat-label">Unrealized P&amp;L</div>
             <div class="acc-stat-val ${pnl>=0?'green':'red'}">${pnlSign}₹${pnl.toFixed(2)}</div>
           </div>
           <div class="acc-stat">
@@ -872,7 +886,6 @@ function renderAlgoPresets() {
       </div>`;
   }).join('');
 
-  // Monitor panel
   const runningAlgos = Object.values(state.activeAlgos).filter(a => a.status === 'RUNNING');
   if (monitorBody) {
     if (runningAlgos.length === 0) {
@@ -904,7 +917,7 @@ function renderAlgoPresets() {
 }
 
 window.toggleAlgo = async (stratKey) => {
-  const master = state.accounts.find(a => a.type === 'Master');
+  const master = state.accounts.find(a => a.type === 'Master') || state.accounts[0];
   const data = await api('/api/algo/toggle', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
@@ -940,26 +953,30 @@ async function runBacktest() {
   state.backtestResult = data;
   const s = data.summary;
 
-  document.getElementById('btNetProfit').textContent  = `₹${s.net_profit.toLocaleString(undefined,{minimumFractionDigits:2})}`;
-  document.getElementById('btNetProfit').className    = `btm-val ${s.net_profit >= 0 ? 'green' : 'red'}`;
-  document.getElementById('btReturn').textContent     = `${s.return_pct >= 0 ? '+' : ''}${s.return_pct}%`;
-  document.getElementById('btReturn').className       = `btm-val ${s.return_pct >= 0 ? 'green' : 'red'}`;
-  document.getElementById('btWinRate').textContent    = `${s.win_rate}%`;
-  document.getElementById('btProfitFactor').textContent = s.profit_factor;
-  document.getElementById('btMaxDrawdown').textContent  = `-${s.max_drawdown_pct}%`;
-  document.getElementById('btTotalTrades').textContent  = s.total_trades;
+  const npEl = document.getElementById('btNetProfit');
+  const retEl = document.getElementById('btReturn');
+  const wrEl = document.getElementById('btWinRate');
+  const pfEl = document.getElementById('btProfitFactor');
+  const ddEl = document.getElementById('btMaxDrawdown');
+  const ttEl = document.getElementById('btTotalTrades');
+
+  if (npEl)  { npEl.textContent  = `₹${s.net_profit.toLocaleString(undefined,{minimumFractionDigits:2})}`; npEl.className = `btm-val ${s.net_profit >= 0 ? 'green' : 'red'}`; }
+  if (retEl) { retEl.textContent = `${s.return_pct >= 0 ? '+' : ''}${s.return_pct}%`; retEl.className = `btm-val ${s.return_pct >= 0 ? 'green' : 'red'}`; }
+  if (wrEl)  wrEl.textContent  = `${s.win_rate}%`;
+  if (pfEl)  pfEl.textContent  = s.profit_factor;
+  if (ddEl)  ddEl.textContent  = `-${s.max_drawdown_pct}%`;
+  if (ttEl)  ttEl.textContent  = s.total_trades;
 
   renderEquityCurve();
 
-  // Trade log
   const tbody = document.getElementById('btTradesBody');
   if (tbody && data.trades) {
     tbody.innerHTML = data.trades.slice(0, 30).map(t => `
       <tr>
         <td>${t.entry_time}</td><td>${t.exit_time}</td>
         <td><span class="badge badge-${t.side==='BUY'?'live':'master'}">${t.side}</span></td>
-        <td>${t.entry_price.toFixed(2)}</td><td>${t.exit_price.toFixed(2)}</td>
-        <td class="${t.pnl>=0?'green':'red'}">$${t.pnl.toFixed(2)}</td>
+        <td>₹${t.entry_price.toFixed(2)}</td><td>₹${t.exit_price.toFixed(2)}</td>
+        <td class="${t.pnl>=0?'green':'red'}">₹${t.pnl.toFixed(2)}</td>
         <td class="${t.return_pct>=0?'green':'red'}">${t.return_pct}%</td>
       </tr>`).join('');
   }
@@ -987,7 +1004,6 @@ function renderEquityCurve() {
 
   ecx.clearRect(0, 0, W, H);
 
-  // Fill under curve
   const grad = ecx.createLinearGradient(0, PAD.t, 0, H - PAD.b);
   grad.addColorStop(0, 'rgba(16,217,130,0.25)');
   grad.addColorStop(1, 'rgba(16,217,130,0)');
@@ -1003,7 +1019,6 @@ function renderEquityCurve() {
   ecx.fillStyle = grad;
   ecx.fill();
 
-  // Equity line
   ecx.strokeStyle = '#10d982';
   ecx.lineWidth = 2;
   ecx.beginPath();
@@ -1013,7 +1028,6 @@ function renderEquityCurve() {
   });
   ecx.stroke();
 
-  // Baseline
   const baseY = toY(initial);
   ecx.strokeStyle = 'rgba(255,255,255,0.08)';
   ecx.lineWidth = 1;
@@ -1032,7 +1046,6 @@ function renderRiskStatus() {
   const ksStatus = document.getElementById('ksStatus');
   const ksRules = state.riskStatus.rules || {};
 
-  // Sync input values
   const dlEl = document.getElementById('riskMaxDailyLoss');
   const psEl = document.getElementById('riskMaxPosSize');
   const slEl = document.getElementById('riskStopLossPct');
@@ -1042,7 +1055,6 @@ function renderRiskStatus() {
   if (slEl && ksRules.default_stop_loss_pct) slEl.value = ksRules.default_stop_loss_pct;
   if (tpEl && ksRules.default_take_profit_pct) tpEl.value = ksRules.default_take_profit_pct;
 
-  // Kill switch status
   if (ksStatus) {
     if (ksRules.kill_switch_active) {
       ksStatus.className = 'ks-status danger';
@@ -1093,8 +1105,8 @@ async function saveRiskRules() {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({
-      max_daily_loss:        parseFloat(document.getElementById('riskMaxDailyLoss')?.value || 2500),
-      max_position_size:     parseFloat(document.getElementById('riskMaxPosSize')?.value || 50000),
+      max_daily_loss:        parseFloat(document.getElementById('riskMaxDailyLoss')?.value || 25000),
+      max_position_size:     parseFloat(document.getElementById('riskMaxPosSize')?.value || 500000),
       default_stop_loss_pct: parseFloat(document.getElementById('riskStopLossPct')?.value || 1.5),
       default_take_profit_pct: parseFloat(document.getElementById('riskTakeProfitPct')?.value || 3.0),
     })
@@ -1130,7 +1142,7 @@ function renderOrderLogs() {
       <td><b>${o.symbol}</b></td>
       <td><span class="badge badge-${o.side==='BUY'?'live':'master'}">${o.side}</span></td>
       <td>${o.quantity}</td>
-      <td>${(o.price||0).toFixed(2)}</td>
+      <td>₹${(o.price||0).toFixed(2)}</td>
       <td>${o.strategy}</td>
       <td style="font-size:0.68rem;color:var(--text-3)">${(o.copied_orders||[]).join(', ')||'—'}</td>
       <td><span class="badge badge-live">${o.status}</span></td>
@@ -1154,7 +1166,7 @@ async function submitAddAccount() {
       type:       document.getElementById('newAccType')?.value,
       broker:     document.getElementById('newAccBroker')?.value,
       mode:       document.getElementById('newAccMode')?.value,
-      balance:    parseFloat(document.getElementById('newAccBalance')?.value || 50000),
+      balance:    parseFloat(document.getElementById('newAccBalance')?.value || 500000),
       multiplier: parseFloat(document.getElementById('newAccMultiplier')?.value || 1.0),
       api_key:    document.getElementById('newAccApiKey')?.value,
       api_secret: document.getElementById('newAccApiSecret')?.value,
@@ -1207,8 +1219,10 @@ function toast(type, title, message, duration = 4000) {
 window.toast = toast;
 
 // ═══════════════════════════════════════════════════════════════
-//  BOOT
+//  BOOT ENGINE
 // ═══════════════════════════════════════════════════════════════
-init();
-
-}); // DOMContentLoaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
