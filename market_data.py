@@ -110,6 +110,7 @@ class MarketDataStreamer:
                         last_price = float(item.get('last', self.assets[sym]["price"]))
                         p_chg = float(item.get('percentChange', 0.0))
                         
+                        self.assets[sym]["base_price"] = last_price
                         self.assets[sym]["price"] = last_price
                         self.assets[sym]["change_pct"] = p_chg
                         self._update_live_candle_tick(sym, last_price)
@@ -127,6 +128,7 @@ class MarketDataStreamer:
                         last_price = float(item.get('lastPrice', self.assets[sym]["price"]))
                         p_chg = float(item.get('pChange', 0.0))
                         
+                        self.assets[sym]["base_price"] = last_price
                         self.assets[sym]["price"] = last_price
                         self.assets[sym]["change_pct"] = p_chg
                         self._update_live_candle_tick(sym, last_price)
@@ -324,12 +326,19 @@ class MarketDataStreamer:
         self._micro_tick()
 
     def _micro_tick(self):
-        """Micro tick simulation for smooth UI rendering."""
+        """Micro tick generator anchored tightly to official exchange LTP."""
         for sym, info in self.assets.items():
-            curr_p = info["price"]
-            volatility = curr_p * 0.0003
-            delta = (random.random() - 0.495) * volatility
-            new_p = round(max(0.01, curr_p + delta), info["decimals"])
+            base_p = info.get("base_price", info["price"])
+            if self.mode == "LIVE":
+                # Micro-tick fluctuates within ±0.005% of the official exchange LTP
+                volatility = base_p * 0.00005
+                delta = (random.random() - 0.5) * volatility
+                new_p = round(max(0.01, base_p + delta), info["decimals"])
+            else:
+                curr_p = info["price"]
+                volatility = curr_p * 0.0003
+                delta = (random.random() - 0.495) * volatility
+                new_p = round(max(0.01, curr_p + delta), info["decimals"])
             
             info["price"] = new_p
             candles_1m = self.history.get(sym, {}).get("1m", [])
