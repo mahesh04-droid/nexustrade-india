@@ -76,6 +76,6 @@ class Config:
         {"symbol": "INFY", "name": "Infosys Limited", "price": 1895.00, "category": "Equities", "decimals": 2},
         {"symbol": "HDFCBANK", "name": "HDFC Bank Limited", "price": 1740.00, "category": "Equities", "decimals": 2},
         {"symbol": "ICICIBANK", "name": "ICICI Bank Limited", "price": 1260.00, "category": "Equities", "decimals": 2},
-        {"symbol": "TATAMOTORS", "name": "Tata Motors Limited", "price": 780.00, "category": "Equities", "decimals": 2},
+        {"symbol": "TATASTEEL", "name": "Tata Steel Limited", "price": 155.00, "category": "Equities", "decimals": 2},
         {"symbol": "SBIN", "name": "State Bank of India", "price": 845.00, "category": "Equities", "decimals": 2}
     ]
