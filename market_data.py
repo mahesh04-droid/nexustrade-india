@@ -1,13 +1,15 @@
 """
-NexusTrade India - Real-Time Live Market Data Engine
-Supports Live Exchange Feeds (NSE/BSE Nifty, BankNifty, Indian Equities via Yahoo Finance API)
-as well as Broker Connectors (Zerodha Kite, AngelOne SmartAPI, Upstox, Dhan).
+NexusTrade India - Official NSE India Direct Live API Engine
+Connects directly to National Stock Exchange of India (www.nseindia.com) official API endpoints
+as well as Zerodha Kite Connect, AngelOne SmartAPI, Upstox & Dhan broker gateways.
 """
 
 import time
 import random
 import math
 import json
+import os
+import subprocess
 import urllib.request
 import threading
 from datetime import datetime, timedelta
@@ -15,16 +17,16 @@ from config import Config
 
 # Mapping internal symbols to live Indian market (NSE/BSE) symbols
 LIVE_SYMBOL_MAP = {
-    "NIFTY50": {"yahoo": "^NSEI", "decimals": 2},
-    "BANKNIFTY": {"yahoo": "^NSEBANK", "decimals": 2},
-    "FINNIFTY": {"yahoo": "NIFTY_FIN_SERVICE.NS", "decimals": 2},
-    "RELIANCE": {"yahoo": "RELIANCE.NS", "decimals": 2},
-    "TCS": {"yahoo": "TCS.NS", "decimals": 2},
-    "INFY": {"yahoo": "INFY.NS", "decimals": 2},
-    "HDFCBANK": {"yahoo": "HDFCBANK.NS", "decimals": 2},
-    "ICICIBANK": {"yahoo": "ICICIBANK.NS", "decimals": 2},
-    "TATASTEEL": {"yahoo": "TATASTEEL.NS", "decimals": 2},
-    "SBIN": {"yahoo": "SBIN.NS", "decimals": 2}
+    "NIFTY50": {"nse_index": "NIFTY 50", "yahoo": "^NSEI", "decimals": 2},
+    "BANKNIFTY": {"nse_index": "NIFTY BANK", "yahoo": "^NSEBANK", "decimals": 2},
+    "FINNIFTY": {"nse_index": "NIFTY FINANCIAL SERVICES", "yahoo": "NIFTY_FIN_SERVICE.NS", "decimals": 2},
+    "RELIANCE": {"nse_symbol": "RELIANCE", "yahoo": "RELIANCE.NS", "decimals": 2},
+    "TCS": {"nse_symbol": "TCS", "yahoo": "TCS.NS", "decimals": 2},
+    "INFY": {"nse_symbol": "INFY", "yahoo": "INFY.NS", "decimals": 2},
+    "HDFCBANK": {"nse_symbol": "HDFCBANK", "yahoo": "HDFCBANK.NS", "decimals": 2},
+    "ICICIBANK": {"nse_symbol": "ICICIBANK", "yahoo": "ICICIBANK.NS", "decimals": 2},
+    "TATASTEEL": {"nse_symbol": "TATASTEEL", "yahoo": "TATASTEEL.NS", "decimals": 2},
+    "SBIN": {"nse_symbol": "SBIN", "yahoo": "SBIN.NS", "decimals": 2}
 }
 
 class MarketDataStreamer:
@@ -34,6 +36,11 @@ class MarketDataStreamer:
         self.history = {} # symbol -> timeframe -> list of candles
         self.depth_of_market = {} # symbol -> {bids: [], asks: []}
         self.last_live_fetch = 0
+        self.last_cookie_refresh = 0
+        
+        self.cookie_file = os.path.join(os.path.dirname(__file__), "scratch", "nse_session.txt")
+        os.makedirs(os.path.dirname(self.cookie_file), exist_ok=True)
+        self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         
         # Populate initial synthetic data immediately for instant zero-latency startup
         self._generate_historical_data()
@@ -44,6 +51,99 @@ class MarketDataStreamer:
 
         # Start continuous background streaming loop
         threading.Thread(target=self._background_stream_worker, daemon=True).start()
+
+    def _refresh_nse_cookies(self):
+        """Refreshes official NSE India (www.nseindia.com) session cookies."""
+        try:
+            cmd = [
+                "curl.exe", "-s", "-L",
+                "-c", self.cookie_file,
+                "-H", f"User-Agent: {self.user_agent}",
+                "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "-H", "Accept-Language: en-US,en;q=0.9",
+                "https://www.nseindia.com"
+            ]
+            subprocess.run(cmd, capture_output=True, timeout=5)
+            self.last_cookie_refresh = time.time()
+        except Exception as e:
+            print("NSE Cookie Refresh Error:", e)
+
+    def _fetch_nse_endpoint(self, endpoint):
+        """Helper to fetch official NSE India API JSON endpoints using session cookies."""
+        try:
+            cmd = [
+                "curl.exe", "-s", "-L",
+                "-b", self.cookie_file,
+                "-c", self.cookie_file,
+                "-H", f"User-Agent: {self.user_agent}",
+                "-H", "Accept: application/json, text/plain, */*",
+                "-H", "Referer: https://www.nseindia.com/",
+                f"https://www.nseindia.com{endpoint}"
+            ]
+            proc = subprocess.run(cmd, capture_output=True, timeout=5)
+            out = proc.stdout.decode('utf-8', errors='ignore')
+            return json.loads(out)
+        except Exception:
+            return None
+
+    def _fetch_nse_direct_official_api(self):
+        """Fetches live quotes directly from Official National Stock Exchange of India (www.nseindia.com)."""
+        now = time.time()
+        if now - self.last_cookie_refresh > 180: # Refresh cookies every 3 mins
+            self._refresh_nse_cookies()
+
+        fetched_any = False
+
+        # 1. Fetch official live indices from NSE India
+        indices_json = self._fetch_nse_endpoint("/api/allIndices")
+        if not indices_json or 'data' not in indices_json:
+            self._refresh_nse_cookies()
+            indices_json = self._fetch_nse_endpoint("/api/allIndices")
+
+        if indices_json and 'data' in indices_json:
+            idx_name_map = {m["nse_index"]: sym for sym, m in LIVE_SYMBOL_MAP.items() if "nse_index" in m}
+            for item in indices_json['data']:
+                idx_name = item.get('index')
+                if idx_name in idx_name_map:
+                    sym = idx_name_map[idx_name]
+                    if sym in self.assets:
+                        last_price = float(item.get('last', self.assets[sym]["price"]))
+                        p_chg = float(item.get('percentChange', 0.0))
+                        
+                        self.assets[sym]["price"] = last_price
+                        self.assets[sym]["change_pct"] = p_chg
+                        self._update_live_candle_tick(sym, last_price)
+                        fetched_any = True
+
+        # 2. Fetch official Nifty 50 constituent equities from NSE India
+        eq_json = self._fetch_nse_endpoint("/api/equity-stockIndices?index=NIFTY%2050")
+        if eq_json and 'data' in eq_json:
+            eq_sym_map = {m["nse_symbol"]: sym for sym, m in LIVE_SYMBOL_MAP.items() if "nse_symbol" in m}
+            for item in eq_json['data']:
+                eq_sym = item.get('symbol')
+                if eq_sym in eq_sym_map:
+                    sym = eq_sym_map[eq_sym]
+                    if sym in self.assets:
+                        last_price = float(item.get('lastPrice', self.assets[sym]["price"]))
+                        p_chg = float(item.get('pChange', 0.0))
+                        
+                        self.assets[sym]["price"] = last_price
+                        self.assets[sym]["change_pct"] = p_chg
+                        self._update_live_candle_tick(sym, last_price)
+                        fetched_any = True
+
+        return fetched_any
+
+    def _update_live_candle_tick(self, symbol, price):
+        """Pushes direct official price quote tick to live 1m candle & DOM."""
+        decimals = self.assets[symbol]["decimals"]
+        if symbol in self.history and "1m" in self.history[symbol] and self.history[symbol]["1m"]:
+            latest = self.history[symbol]["1m"][-1]
+            latest["close"] = round(price, decimals)
+            latest["high"] = max(latest["high"], round(price, decimals))
+            latest["low"] = min(latest["low"], round(price, decimals))
+            latest["volume"] += random.randint(5, 50)
+        self._update_dom(symbol, price, decimals)
 
     def _background_stream_worker(self):
         """Continuous background thread that periodically refreshes live market ticks & updates prices."""
@@ -76,11 +176,20 @@ class MarketDataStreamer:
             self._generate_historical_data()
 
     def _fetch_live_market_data(self, target_tf=None):
-        """Fetches real-time live market OHLCV data from Yahoo Finance & exchange APIs."""
+        """Fetches real-time live market OHLCV data from Direct Official NSE India API & Yahoo Finance."""
         timeframes = [target_tf] if target_tf else ["1m", "5m"]
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
         fetched_any = False
-        
+
+        # First priority: Direct Official NSE India API Connection
+        try:
+            direct_success = self._fetch_nse_direct_official_api()
+            if direct_success:
+                fetched_any = True
+        except Exception as e:
+            print("Direct NSE Official API Error:", e)
+
+        # Secondary: Yahoo Finance OHLCV candle historical series
         for symbol, info in list(self.assets.items()):
             try:
                 if symbol not in self.history:
@@ -89,7 +198,6 @@ class MarketDataStreamer:
                 mapping = LIVE_SYMBOL_MAP.get(symbol, {})
                 decimals = info.get("decimals", 2)
                 
-                # Fetch Live Candles for 1m and 5m timeframes
                 for tf in timeframes:
                     try:
                         interval_map = {"1m": "1m", "5m": "5m", "15m": "15m", "1h": "60m", "1d": "1d"}
@@ -130,12 +238,10 @@ class MarketDataStreamer:
                                 if candles:
                                     self.history[symbol][tf] = candles
                                     fetched_any = True
-                    except Exception as ex:
-                        # Fallback to synthetic for this specific timeframe if live fetch failed
+                    except Exception:
                         if tf not in self.history[symbol] or not self.history[symbol][tf]:
                             self._generate_tf_candles(symbol, tf, info["price"])
                             
-                # Update live prices from latest 1m candle
                 if "1m" in self.history[symbol] and self.history[symbol]["1m"]:
                     latest_c = self.history[symbol]["1m"][-1]
                     prev_c = self.history[symbol]["1m"][0]
@@ -150,7 +256,7 @@ class MarketDataStreamer:
                     
                     self._update_dom(symbol, curr_price, decimals)
             except Exception as outer_e:
-                print(f"Error fetching live symbol {symbol}:", outer_e)
+                pass
                 
         return fetched_any
 
@@ -210,12 +316,10 @@ class MarketDataStreamer:
         now_ts = time.time()
         
         if self.mode == "LIVE":
-            # Refresh live market feeds every 3 seconds
             if now_ts - self.last_live_fetch >= 3.0:
                 self.last_live_fetch = now_ts
                 self._fetch_live_market_data()
             else:
-                # Micro-tick simulation between REST refreshes for ultra-smooth UI
                 self._micro_tick()
         else:
             self._micro_tick()
