@@ -347,9 +347,17 @@ async function fetchCandles() {
 async function fetchAccounts() {
   const data = await api('/api/accounts');
   if (!data) return;
+  
+  const hash = JSON.stringify(data.map(a => [a.id, a.name, a.mode, a.type, a.balance, a.unrealized_pnl, a.open_positions_count]));
+  const structureChanged = !state.lastAccountsHash || JSON.stringify(data.map(a => a.id)) !== JSON.stringify(state.accounts.map(a => a.id));
+  
   state.accounts = data;
-  renderAccountsGrid();
-  renderAccountSelect();
+  
+  if (hash !== state.lastAccountsHash) {
+    state.lastAccountsHash = hash;
+    renderAccountsGrid();
+    if (structureChanged) renderAccountSelect();
+  }
   updatePortfolioStrip();
 }
 
