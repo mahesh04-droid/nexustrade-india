@@ -25,17 +25,14 @@ def json_resp(data, status=200):
     response.status = status
     return json.dumps(data)
 
-# Helper to validate active user session
+# Helper to validate active user session (Temporarily bypassed for testing mode)
 def get_current_user():
-    token = request.get_header('X-Auth-Token') or request.cookies.get('nexus_token')
-    return auth_manager.validate_session(token)
+    # Bypass auth for testing: Return admin user directly
+    return {"email": "admin@nexustrade.in", "name": "Platform Administrator"}
 
 # Static Files & Login Page
 @app.route('/')
 def index():
-    user = get_current_user()
-    if not user:
-        return static_file('login.html', root=os.path.join(os.path.dirname(__file__), 'static'))
     return static_file('index.html', root=os.path.join(os.path.dirname(__file__), 'static'))
 
 @app.route('/login')
