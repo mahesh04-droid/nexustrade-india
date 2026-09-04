@@ -259,6 +259,41 @@ class DeepSystemTestSuite(unittest.TestCase):
             self.assertIn("rules", risk_data)
             self.assertIn("alerts", risk_data)
 
+    # ═══════════════════════════════════════════════════════════════
+    #  7. AUTHENTICATION & EMAIL OTP SECURITY TESTS
+    # ═══════════════════════════════════════════════════════════════
+    def test_13_authentication_and_otp(self):
+        """Verifies User Authentication, Salted Password Hashing, Email OTP, & Session Tokens."""
+        from auth_manager import auth_manager
+
+        # 1. Test Login Step 1 with default admin
+        res = auth_manager.authenticate_user("admin@nexustrade.in", "Nexus@2026")
+        self.assertEqual(res["status"], "SUCCESS")
+        self.assertEqual(res["step"], "REQUIRE_OTP")
+
+        # Get generated OTP
+        user = auth_manager.users["admin@nexustrade.in"]
+        otp_code = user["otp_code"]
+        self.assertIsNotNone(otp_code)
+        self.assertEqual(len(otp_code), 6)
+
+        # 2. Test Step 2 OTP Verification
+        otp_res = auth_manager.verify_otp("admin@nexustrade.in", otp_code)
+        self.assertEqual(otp_res["status"], "SUCCESS")
+        self.assertIn("token", otp_res)
+
+        token = otp_res["token"]
+
+        # 3. Test Session Token Validation
+        valid_user = auth_manager.validate_session(token)
+        self.assertIsNotNone(valid_user)
+        self.assertEqual(valid_user["email"], "admin@nexustrade.in")
+
+        # 4. Test Session Revocation (Logout)
+        revoked = auth_manager.revoke_session(token)
+        self.assertTrue(revoked)
+        self.assertIsNone(auth_manager.validate_session(token))
+
 if __name__ == '__main__':
     print("==================================================================")
     print("  RUNNING NEXUSTRADE INDIA PRO - DEEP AUTOMATED SYSTEM TEST SUITE ")

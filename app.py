@@ -15,6 +15,7 @@ from indicators import TechnicalIndicators
 from account_manager import account_manager
 from algo_engine import algo_engine
 from risk_manager import risk_manager
+from auth_manager import auth_manager
 
 app = Bottle()
 
@@ -24,14 +25,65 @@ def json_resp(data, status=200):
     response.status = status
     return json.dumps(data)
 
-# Static Files
+# Helper to validate active user session
+def get_current_user():
+    token = request.get_header('X-Auth-Token') or request.cookies.get('nexus_token')
+    return auth_manager.validate_session(token)
+
+# Static Files & Login Page
 @app.route('/')
 def index():
+    user = get_current_user()
+    if not user:
+        return static_file('login.html', root=os.path.join(os.path.dirname(__file__), 'static'))
     return static_file('index.html', root=os.path.join(os.path.dirname(__file__), 'static'))
+
+@app.route('/login')
+def login_page():
+    return static_file('login.html', root=os.path.join(os.path.dirname(__file__), 'static'))
 
 @app.route('/static/<filepath:path>')
 def server_static(filepath):
     return static_file(filepath, root=os.path.join(os.path.dirname(__file__), 'static'))
+
+# API - Security & Authentication Routes
+@app.route('/api/auth/login', method='POST')
+def auth_login():
+    try:
+        data = request.json or json.loads(request.body.read().decode('utf-8'))
+        email = data.get("email", "")
+        password = data.get("password", "")
+        res = auth_manager.authenticate_user(email, password)
+        return json_resp(res, 200 if res["status"] == "SUCCESS" else 401)
+    except Exception as e:
+        return json_resp({"status": "ERROR", "message": str(e)}, 400)
+
+@app.route('/api/auth/verify-otp', method='POST')
+def auth_verify_otp():
+    try:
+        data = request.json or json.loads(request.body.read().decode('utf-8'))
+        email = data.get("email", "")
+        otp_code = data.get("otp_code", "")
+        res = auth_manager.verify_otp(email, otp_code)
+        if res["status"] == "SUCCESS":
+            response.set_cookie("nexus_token", res["token"], path="/", max_age=86400*7)
+        return json_resp(res, 200 if res["status"] == "SUCCESS" else 401)
+    except Exception as e:
+        return json_resp({"status": "ERROR", "message": str(e)}, 400)
+
+@app.route('/api/auth/logout', method='POST')
+def auth_logout():
+    token = request.get_header('X-Auth-Token') or request.cookies.get('nexus_token')
+    auth_manager.revoke_session(token)
+    response.delete_cookie("nexus_token", path="/")
+    return json_resp({"status": "SUCCESS", "message": "Logged out successfully."})
+
+@app.route('/api/auth/me', method='GET')
+def auth_me():
+    user = get_current_user()
+    if user:
+        return json_resp({"authenticated": True, "user": {"email": user["email"], "name": user["name"]}})
+    return json_resp({"authenticated": False}, 401)
 
 # API - Market Data & Indicators
 @app.route('/api/market/mode', method='GET')

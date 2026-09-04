@@ -216,6 +216,12 @@ function setupListeners() {
   // Risk Rules
   document.getElementById('btnSaveRiskRules')?.addEventListener('click', saveRiskRules);
 
+  // Logout button
+  document.getElementById('hdrLogoutBtn')?.addEventListener('click', async () => {
+    await api('/api/auth/logout', {method: 'POST'});
+    window.location.href = '/login';
+  });
+
   // Chart canvas mouse move (crosshair)
   C.candle?.addEventListener('mousemove', onChartMouseMove);
   C.candle?.addEventListener('mouseleave', () => {
@@ -256,9 +262,13 @@ function resizeCanvases() {
 // ═══════════════════════════════════════════════════════════════
 //  API HELPERS
 // ═══════════════════════════════════════════════════════════════
-async function api(path, opts) {
+async function api(path, opts = {}) {
   try {
     const res = await fetch(path, opts);
+    if (res.status === 401 && !path.includes('/api/auth/')) {
+      window.location.href = '/login';
+      return null;
+    }
     return await res.json();
   } catch(e) { console.error('API error', path, e); return null; }
 }
