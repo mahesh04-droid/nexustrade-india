@@ -144,33 +144,8 @@ class AccountManager:
         return {"status": "SUCCESS", "message": "Account balance up to date."}
 
     def _seed_sample_orders(self):
-        """Seeds realistic historical execution logs for immediate visual feedback."""
-        sample_assets = ["NIFTY50", "BANKNIFTY", "RELIANCE", "TCS", "HDFCBANK", "INFY"]
-        now = datetime.now()
-        
-        for i in range(12):
-            asset = sample_assets[i % len(sample_assets)]
-            info = market_data_streamer.get_asset_info(asset)
-            price = info["price"] if info else 1000.0
-            qty = (i + 1) * 5
-            side = "BUY" if i % 2 == 0 else "SELL"
-            pnl = round((i * 450.5) - 300.0, 2)
-            
-            self.order_history.append({
-                "order_id": f"ORD-{1000 + i}",
-                "account_id": "ACC-MASTER-01",
-                "account_name": "Master Account (Zerodha Kite)",
-                "symbol": asset,
-                "side": side,
-                "quantity": qty,
-                "price": price,
-                "status": "FILLED",
-                "type": "MARKET",
-                "strategy": "MA Crossover" if i % 2 == 0 else "Manual Terminal",
-                "copied_orders": [f"ORD-{2000 + i}", f"ORD-{3000 + i}"],
-                "realized_pnl": pnl,
-                "timestamp": (now - timedelta(hours=i*2)).strftime("%Y-%m-%d %H:%M:%S")
-            })
+        """Clean production initialization - no synthetic sample orders."""
+        pass
 
     def get_all_accounts(self):
         """Returns account summaries including balance, P&L, and open positions."""
