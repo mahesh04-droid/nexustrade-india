@@ -2,14 +2,19 @@
 Antigravity AlgoTrader Pro - Multi-Account Management & Master-Child Trade Copier Engine
 """
 
+import os
+import json
 import uuid
 from datetime import datetime, timedelta
 from config import Config
 from market_data import market_data_streamer
 
+ACCOUNTS_DB_FILE = os.path.join(os.path.dirname(__file__), "scratch", "accounts_db.json")
+
 class AccountManager:
     def __init__(self):
-        self.accounts = {acc["id"]: dict(acc) for acc in Config.INITIAL_ACCOUNTS}
+        os.makedirs(os.path.dirname(ACCOUNTS_DB_FILE), exist_ok=True)
+        self.accounts = self._load_accounts()
         self.positions = {} # acc_id -> list of position dicts
         self.order_history = []
         
@@ -19,6 +24,60 @@ class AccountManager:
             
         # Seed initial sample trades for demonstration analytics
         self._seed_sample_orders()
+
+    def _load_accounts(self):
+        """Loads accounts from persistent disk storage if available, else uses defaults."""
+        if os.path.exists(ACCOUNTS_DB_FILE):
+            try:
+                with open(ACCOUNTS_DB_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict) and data:
+                        return data
+            except Exception as e:
+                print("Error loading accounts DB:", e)
+        # Default accounts
+        defaults = {acc["id"]: dict(acc) for acc in Config.INITIAL_ACCOUNTS}
+        self._save_accounts(defaults)
+        return defaults
+
+    def _save_accounts(self, accounts_dict=None):
+        """Saves accounts to persistent disk storage."""
+        data_to_save = accounts_dict if accounts_dict is not None else self.accounts
+        try:
+            with open(ACCOUNTS_DB_FILE, "w", encoding="utf-8") as f:
+                json.dump(data_to_save, f, indent=2)
+        except Exception as e:
+            print("Error saving accounts DB:", e)
+
+    def add_account(self, account_data):
+        """Adds or connects a new broker account profile."""
+        acc_id = account_data.get("id") or f"ACC-{uuid.uuid4().hex[:6].upper()}"
+        new_acc = {
+            "id": acc_id,
+            "name": account_data.get("name", "New Account"),
+            "type": account_data.get("type", "Child"), # "Master" or "Child"
+            "broker": account_data.get("broker", "Paper Simulator"),
+            "balance": float(account_data.get("balance", 500000.0)),
+            "currency": account_data.get("currency", "INR"),
+            "status": "Connected",
+            "mode": account_data.get("mode", "Paper"),
+            "api_key": account_data.get("api_key", "sec_xxxx"),
+            "api_secret": "••••••••••••••••",
+            "multiplier": float(account_data.get("multiplier", 1.0)),
+            "master_id": account_data.get("master_id", "ACC-MASTER-01")
+        }
+        self.accounts[acc_id] = new_acc
+        self.positions[acc_id] = []
+        self._save_accounts()
+        return new_acc
+
+    def update_account(self, acc_id, updates):
+        """Updates account settings or broker API credentials."""
+        if acc_id in self.accounts:
+            self.accounts[acc_id].update(updates)
+            self._save_accounts()
+            return self.accounts[acc_id]
+        return None
 
     def _seed_sample_orders(self):
         """Seeds realistic historical execution logs for immediate visual feedback."""
@@ -71,34 +130,6 @@ class AccountManager:
             acc_copy["total_equity"] = round(acc["balance"] + unrealized_pnl, 2)
             result.append(acc_copy)
         return result
-
-    def add_account(self, account_data):
-        """Adds or connects a new broker account profile."""
-        acc_id = account_data.get("id") or f"ACC-{uuid.uuid4().hex[:6].upper()}"
-        new_acc = {
-            "id": acc_id,
-            "name": account_data.get("name", "New Account"),
-            "type": account_data.get("type", "Child"), # "Master" or "Child"
-            "broker": account_data.get("broker", "Paper Simulator"),
-            "balance": float(account_data.get("balance", 500000.0)),
-            "currency": account_data.get("currency", "INR"),
-            "status": "Connected",
-            "mode": account_data.get("mode", "Paper"),
-            "api_key": account_data.get("api_key", "sec_xxxx"),
-            "api_secret": "••••••••••••••••",
-            "multiplier": float(account_data.get("multiplier", 1.0)),
-            "master_id": account_data.get("master_id", "ACC-MASTER-01")
-        }
-        self.accounts[acc_id] = new_acc
-        self.positions[acc_id] = []
-        return new_acc
-
-    def update_account(self, acc_id, updates):
-        """Updates account settings or broker API credentials."""
-        if acc_id in self.accounts:
-            self.accounts[acc_id].update(updates)
-            return self.accounts[acc_id]
-        return None
 
     def execute_order(self, account_id, symbol, side, quantity, order_type="MARKET", strategy="Manual Terminal", trigger_copier=True):
         """
