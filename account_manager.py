@@ -50,19 +50,41 @@ class AccountManager:
             print("Error saving accounts DB:", e)
 
     def add_account(self, account_data):
-        """Adds or connects a new broker account profile."""
+        """Adds or connects a new broker account profile with auto-fetching live balance."""
         acc_id = account_data.get("id") or f"ACC-{uuid.uuid4().hex[:6].upper()}"
+        broker = account_data.get("broker", "Paper Simulator")
+        api_key = account_data.get("api_key", "")
+        api_secret = account_data.get("api_secret", "")
+
+        balance = float(account_data.get("balance", 500000.0))
+        name = account_data.get("name", "New Account")
+
+        # Auto-fetch live balance & profile if connecting AngelOne SmartAPI
+        if "Angel" in broker and api_key:
+            try:
+                from brokers import AngelOneConnector
+                conn = AngelOneConnector(api_key=api_key, jwt_token=api_secret)
+                res = conn.fetch_live_profile_and_balance()
+                if res.get("status") == "SUCCESS":
+                    if res.get("balance", 0) > 0:
+                        balance = res["balance"]
+                    if res.get("name"):
+                        name = res["name"]
+            except Exception as e:
+                print("AngelOne auto-sync error:", e)
+
         new_acc = {
             "id": acc_id,
-            "name": account_data.get("name", "New Account"),
-            "type": account_data.get("type", "Child"), # "Master" or "Child"
-            "broker": account_data.get("broker", "Paper Simulator"),
-            "balance": float(account_data.get("balance", 500000.0)),
+            "name": name,
+            "type": account_data.get("type", "Master" if len(self.accounts) == 0 else "Child"),
+            "broker": broker,
+            "balance": balance,
             "currency": account_data.get("currency", "INR"),
             "status": "Connected",
             "mode": account_data.get("mode", "Paper"),
-            "api_key": account_data.get("api_key", "sec_xxxx"),
-            "api_secret": "••••••••••••••••",
+            "api_key": api_key or "sec_xxxx",
+            "api_secret": "••••••••••••••••" if api_secret else "",
+            "raw_jwt": api_secret,
             "multiplier": float(account_data.get("multiplier", 1.0)),
             "master_id": account_data.get("master_id", "ACC-MASTER-01")
         }
@@ -78,6 +100,48 @@ class AccountManager:
             self._save_accounts()
             return self.accounts[acc_id]
         return None
+
+    def delete_account(self, acc_id):
+        """Deletes an account profile."""
+        if acc_id in self.accounts:
+            del self.accounts[acc_id]
+            if acc_id in self.positions:
+                del self.positions[acc_id]
+            self._save_accounts()
+            return True
+        return False
+
+    def clear_all_accounts(self):
+        """Clears all account profiles."""
+        self.accounts = {}
+        self.positions = {}
+        self._save_accounts()
+        return True
+
+    def sync_broker_balance(self, acc_id):
+        """Syncs live fund balance directly from linked broker servers."""
+        acc = self.accounts.get(acc_id)
+        if not acc:
+            return {"status": "ERROR", "message": "Account not found"}
+
+        if "Angel" in acc.get("broker", ""):
+            try:
+                from brokers import AngelOneConnector
+                api_key = acc.get("api_key", "")
+                jwt_token = acc.get("raw_jwt", "")
+                conn = AngelOneConnector(api_key=api_key, jwt_token=jwt_token)
+                res = conn.fetch_live_profile_and_balance()
+                if res.get("status") == "SUCCESS":
+                    if res.get("balance", 0) > 0:
+                        acc["balance"] = res["balance"]
+                    if res.get("name"):
+                        acc["name"] = res["name"]
+                    self._save_accounts()
+                    return res
+                return res
+            except Exception as e:
+                return {"status": "ERROR", "message": f"Sync Error: {str(e)}"}
+        return {"status": "SUCCESS", "message": "Account balance up to date."}
 
     def _seed_sample_orders(self):
         """Seeds realistic historical execution logs for immediate visual feedback."""

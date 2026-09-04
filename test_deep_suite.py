@@ -259,7 +259,7 @@ class DeepSystemTestSuite(unittest.TestCase):
         with urllib.request.urlopen(req_acc, timeout=4) as resp:
             self.assertEqual(resp.status, 200)
             acc_data = json.loads(resp.read().decode())
-            self.assertGreaterEqual(len(acc_data), 3)
+            self.assertGreaterEqual(len(acc_data), 1)
 
         # 4. /api/risk/status
         req_risk = urllib.request.Request(f"{base_url}/api/risk/status")

@@ -139,6 +139,33 @@ def update_account(acc_id):
     except Exception as e:
         return json_resp({"status": "ERROR", "message": str(e)}, 400)
 
+@app.route('/api/accounts/clear', method='POST')
+@app.route('/api/accounts/all', method='DELETE')
+def clear_all_accounts():
+    try:
+        account_manager.clear_all_accounts()
+        return json_resp({"status": "SUCCESS", "message": "All account profiles cleared."})
+    except Exception as e:
+        return json_resp({"status": "ERROR", "message": str(e)}, 500)
+
+@app.route('/api/accounts/<acc_id>', method='DELETE')
+def delete_account(acc_id):
+    try:
+        success = account_manager.delete_account(acc_id)
+        if success:
+            return json_resp({"status": "SUCCESS", "message": f"Account {acc_id} deleted."})
+        return json_resp({"status": "ERROR", "message": "Account not found."}, 44)
+    except Exception as e:
+        return json_resp({"status": "ERROR", "message": str(e)}, 400)
+
+@app.route('/api/accounts/<acc_id>/sync', method='POST')
+def sync_account_balance(acc_id):
+    try:
+        res = account_manager.sync_broker_balance(acc_id)
+        return json_resp(res)
+    except Exception as e:
+        return json_resp({"status": "ERROR", "message": str(e)}, 500)
+
 # API - Order Placement & Execution
 @app.route('/api/orders/place', method='POST')
 def place_order():

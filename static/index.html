@@ -517,10 +517,15 @@
         <h2 class="section-title">Multi-Account Hub</h2>
         <p class="section-sub">Master-Child Trade Copier for Indian Brokers (Zerodha, AngelOne, Upstox, Dhan)</p>
       </div>
-      <button class="btn-primary" id="btnAddAccountBtn">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Connect Broker Account
-      </button>
+      <div style="display:flex; gap:0.5rem;">
+        <button class="btn-ghost" onclick="clearAllAccounts()" style="border-color:rgba(244,63,94,0.3); color:var(--red);">
+          🗑 Clear All Accounts
+        </button>
+        <button class="btn-primary" id="btnAddAccountBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Connect Broker Account
+        </button>
+      </div>
     </div>
     <div class="accounts-grid" id="accountsGridContainer"></div>
   </div>

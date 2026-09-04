@@ -891,10 +891,12 @@ function renderAccountsGrid() {
           ${acc.copied_by?.length ? `<br><b>Copies to:</b> ${acc.copied_by.join(', ')}` : ''}
         </div>
 
-        <div class="acc-actions">
+        <div class="acc-actions" style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:0.75rem;">
           <button class="btn-small" onclick="toggleAccountMode('${acc.id}','${acc.mode==='Live'?'Paper':'Live'}')">
             Switch to ${acc.mode==='Live'?'Paper':'Live Mode'}
           </button>
+          ${acc.broker.includes('Angel') ? `<button class="btn-small" style="background:rgba(16,217,130,0.15); color:var(--green);" onclick="syncBrokerBalance('${acc.id}')">🔄 Sync Live Balance</button>` : ''}
+          <button class="btn-small" style="background:rgba(244,63,94,0.15); color:var(--red);" onclick="deleteAccount('${acc.id}')">🗑 Remove</button>
         </div>
       </div>`;
   }).join('');
@@ -908,6 +910,35 @@ window.toggleAccountMode = async (accId, newMode) => {
   });
   if (data?.status === 'SUCCESS') {
     toast('info', 'Mode Switched', `Account switched to ${newMode} mode`);
+    fetchAccounts();
+  }
+};
+
+window.syncBrokerBalance = async (accId) => {
+  toast('info', 'Syncing Balance', 'Fetching live funds & profile from broker servers...');
+  const data = await api(`/api/accounts/${accId}/sync`, {method: 'POST'});
+  if (data?.status === 'SUCCESS') {
+    toast('success', 'Balance Synced', data.message);
+    fetchAccounts();
+  } else {
+    toast('error', 'Sync Failed', data?.message || 'Check credentials');
+  }
+};
+
+window.deleteAccount = async (accId) => {
+  if (!confirm('Are you sure you want to remove this account profile?')) return;
+  const data = await api(`/api/accounts/${accId}`, {method: 'DELETE'});
+  if (data?.status === 'SUCCESS') {
+    toast('info', 'Account Removed', data.message);
+    fetchAccounts();
+  }
+};
+
+window.clearAllAccounts = async () => {
+  if (!confirm('⚠ REMOVE ALL ACCOUNTS?\n\nThis will clear all connected account profiles so you can add your own real account.')) return;
+  const data = await api('/api/accounts/clear', {method: 'POST'});
+  if (data?.status === 'SUCCESS') {
+    toast('info', 'Accounts Cleared', 'All account profiles removed.');
     fetchAccounts();
   }
 };
