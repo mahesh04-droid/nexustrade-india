@@ -14,44 +14,16 @@ class Config:
     INITIAL_ACCOUNTS = [
         {
             "id": "ACC-MASTER-01",
-            "name": "Master Account (Zerodha Kite)",
+            "name": "Master Account",
             "type": "Master",
             "broker": "Zerodha Kite Connect (NSE/BSE)",
             "balance": 1000000.00, # ₹10 Lakhs
             "currency": "INR",
             "status": "Connected",
-            "mode": "Paper", # "Paper" or "Live"
-            "api_key": "kite_live_master_sec_xxxx",
-            "api_secret": "••••••••••••••••",
-            "copied_by": ["ACC-CHILD-01", "ACC-CHILD-02"]
-        },
-        {
-            "id": "ACC-CHILD-01",
-            "name": "Child Account 1 (AngelOne)",
-            "type": "Child",
-            "broker": "AngelOne SmartAPI (NSE/BSE)",
-            "balance": 500000.00, # ₹5 Lakhs
-            "currency": "INR",
-            "status": "Connected",
             "mode": "Paper",
-            "api_key": "angel_child1_sec_yyyy",
+            "api_key": "sec_master_xxxx",
             "api_secret": "••••••••••••••••",
-            "multiplier": 0.5, # Copy 50% lot size of master
-            "master_id": "ACC-MASTER-01"
-        },
-        {
-            "id": "ACC-CHILD-02",
-            "name": "Child Account 2 (Upstox)",
-            "type": "Child",
-            "broker": "Upstox API (NSE/BSE)",
-            "balance": 2500000.00, # ₹25 Lakhs
-            "currency": "INR",
-            "status": "Connected",
-            "mode": "Paper",
-            "api_key": "upstox_child2_sec_zzzz",
-            "api_secret": "••••••••••••••••",
-            "multiplier": 2.0, # Copy 200% lot size of master
-            "master_id": "ACC-MASTER-01"
+            "copied_by": []
         }
     ]
 

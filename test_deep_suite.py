@@ -103,7 +103,7 @@ class DeepSystemTestSuite(unittest.TestCase):
     def test_06_account_management(self):
         """Verifies initial accounts setup and adding new broker accounts."""
         accounts = account_manager.get_all_accounts()
-        self.assertGreaterEqual(len(accounts), 3, "Should have at least 3 default accounts.")
+        self.assertGreaterEqual(len(accounts), 1, "Should have at least 1 default master account.")
         
         master = next((a for a in accounts if a["type"] == "Master"), None)
         self.assertIsNotNone(master, "Master Account must exist.")
@@ -111,6 +111,17 @@ class DeepSystemTestSuite(unittest.TestCase):
 
     def test_07_master_child_trade_copier(self):
         """Verifies Master-Child trade copier order execution and lot multipliers."""
+        # Add dynamic child account for testing
+        account_manager.add_account({
+            "id": "ACC-CHILD-TEST",
+            "name": "Test Child Account",
+            "type": "Child",
+            "broker": "AngelOne SmartAPI",
+            "balance": 500000.0,
+            "multiplier": 0.5,
+            "master_id": "ACC-MASTER-01"
+        })
+
         master_id = "ACC-MASTER-01"
         res = account_manager.execute_order(
             account_id=master_id,
@@ -131,10 +142,9 @@ class DeepSystemTestSuite(unittest.TestCase):
         master_pos = account_manager.get_positions(master_id)
         self.assertTrue(any(p["symbol"] == "BANKNIFTY" for p in master_pos), "Master account should have open position.")
         
-        child1_pos = account_manager.get_positions("ACC-CHILD-01")
-        # Child 1 has multiplier 0.5 -> quantity should be round(5 * 0.5) = 2 or 3
+        child1_pos = account_manager.get_positions("ACC-CHILD-TEST")
         child1_banknifty = next((p for p in child1_pos if p["symbol"] == "BANKNIFTY"), None)
-        self.assertIsNotNone(child1_banknifty, "Child 1 should have copied position.")
+        self.assertIsNotNone(child1_banknifty, "Child should have copied position.")
 
     def test_08_position_liquidation(self):
         """Verifies position closing and trade exit P&L calculation."""
