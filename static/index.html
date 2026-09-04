@@ -48,6 +48,10 @@
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
       <span class="nav-label">Backtest</span>
     </button>
+    <button class="nav-item" data-tab="options-tab" data-tooltip="Option Chain (Nifty/BankNifty)">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+      <span class="nav-label">Option Chain</span>
+    </button>
 
     <div class="nav-section-label" style="margin-top:1.5rem">ACCOUNTS</div>
     <button class="nav-item" data-tab="accounts-tab" data-tooltip="Multi-Account Hub">
@@ -506,6 +510,57 @@
             <tbody id="btTradesBody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────── TAB: OPTION CHAIN ─────────────────────── -->
+  <div class="workspace tab-content" id="options-tab">
+    <div class="options-header" style="display:flex; justify-space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:1rem;">
+      <div>
+        <h2 class="section-title">NSE Options Chain Terminal</h2>
+        <p class="section-sub">Real-time Call (CE) &amp; Put (PE) Index Options for NIFTY, BANK NIFTY, and FIN NIFTY</p>
+      </div>
+
+      <div class="options-filters" style="display:flex; align-items:center; gap:0.75rem;">
+        <select class="ticket-select" id="optSymbolSelect" style="min-width:140px; font-weight:700;">
+          <option value="NIFTY50" selected>NIFTY 50</option>
+          <option value="BANKNIFTY">BANK NIFTY</option>
+          <option value="FINNIFTY">FIN NIFTY</option>
+        </select>
+
+        <select class="ticket-select" id="optExpirySelect" style="min-width:140px;">
+          <option value="27-SEP-2026">27-SEP-2026 (Weekly)</option>
+          <option value="04-OCT-2026">04-OCT-2026 (Next)</option>
+          <option value="29-OCT-2026">29-OCT-2026 (Monthly)</option>
+        </select>
+
+        <div class="pcr-badge" style="background:#101520; border:1px solid #1e2840; padding:0.4rem 0.75rem; border-radius:6px; font-size:0.8rem; display:flex; align-items:center; gap:0.4rem;">
+          <span style="color:#8a99ad;">PCR:</span>
+          <span style="font-weight:700; color:#10d982;" id="optPcrVal">1.12</span>
+          <span style="font-size:0.7rem; color:#4c5a72;" id="optPcrStatus">(Bullish)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Options Chain Table -->
+    <div class="panel" style="overflow:hidden; border-radius:10px;">
+      <div style="overflow-x:auto;">
+        <table class="data-table options-table" style="width:100%; text-align:center; font-size:0.8rem;">
+          <thead>
+            <tr style="background:#070a10; color:#94a3b8; border-bottom:1px solid #1e2840;">
+              <th colspan="5" style="color:#10d982; border-right:1px solid #1e2840; padding:0.6rem;">CALLS (CE)</th>
+              <th style="color:#fff; background:#141b28; padding:0.6rem;">STRIKE</th>
+              <th colspan="5" style="color:#f43f5e; border-left:1px solid #1e2840; padding:0.6rem;">PUTS (PE)</th>
+            </tr>
+            <tr style="background:#0c1018; color:#8a99ad; font-size:0.75rem;">
+              <th>Action</th><th>LTP (₹)</th><th>Chg %</th><th>IV</th><th>OI</th>
+              <th style="background:#101520; color:#fff;">STRIKE</th>
+              <th>OI</th><th>IV</th><th>Chg %</th><th>LTP (₹)</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="optionsChainBody"></tbody>
+        </table>
       </div>
     </div>
   </div>

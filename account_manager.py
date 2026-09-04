@@ -26,12 +26,12 @@ class AccountManager:
         self._seed_sample_orders()
 
     def _load_accounts(self):
-        """Loads accounts from persistent disk storage if available, else uses defaults."""
+        """Loads accounts from persistent disk storage if available."""
         if os.path.exists(ACCOUNTS_DB_FILE):
             try:
                 with open(ACCOUNTS_DB_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    if isinstance(data, dict) and data:
+                    if isinstance(data, dict):
                         return data
             except Exception as e:
                 print("Error loading accounts DB:", e)

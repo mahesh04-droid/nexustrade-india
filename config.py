@@ -10,22 +10,8 @@ class Config:
     PORT = 5000
     DEBUG = True
 
-    # Initial Accounts Setup (Indian Paper Trading Defaults in INR)
-    INITIAL_ACCOUNTS = [
-        {
-            "id": "ACC-MASTER-01",
-            "name": "Master Account",
-            "type": "Master",
-            "broker": "Zerodha Kite Connect (NSE/BSE)",
-            "balance": 1000000.00, # ₹10 Lakhs
-            "currency": "INR",
-            "status": "Connected",
-            "mode": "Paper",
-            "api_key": "sec_master_xxxx",
-            "api_secret": "••••••••••••••••",
-            "copied_by": []
-        }
-    ]
+    # Initial Accounts Setup - Starts completely empty (0 accounts)
+    INITIAL_ACCOUNTS = []
 
     # Global Risk Defaults (in INR)
     RISK_DEFAULTS = {

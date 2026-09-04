@@ -388,8 +388,108 @@ class MarketDataStreamer:
 
     def get_dom(self, symbol):
         if symbol not in self.depth_of_market:
-            self._update_dom(symbol, self.assets[symbol]["price"], self.assets[symbol]["decimals"])
-        return self.depth_of_market.get(symbol, {"bids": [], "asks": []})
+            self._update_dom(symbol, self.assets.get(symbol, {}).get("price", 1000.0), 2)
+        return self.depth_of_market[symbol]
+
+    def get_option_chain(self, symbol="NIFTY50", expiry=None):
+        """
+        Generates real-time Options Chain matrix for NIFTY, BANKNIFTY, and FINNIFTY.
+        Computes Strike Prices, Call (CE) & Put (PE) Intrinsic & Time Value LTPs,
+        Open Interest (OI), Volume, IV, and PCR (Put-Call Ratio).
+        """
+        asset = self.assets.get(symbol, self.assets.get("NIFTY50"))
+        spot_price = asset["price"] if asset else 24000.0
+
+        # Determine index strike step size & lot size
+        if "BANK" in symbol:
+            strike_step = 100
+            lot_size = 15
+        elif "FIN" in symbol:
+            strike_step = 50
+            lot_size = 25
+        else: # NIFTY50
+            strike_step = 50
+            lot_size = 25
+
+        # ATM Strike
+        atm_strike = int(round(spot_price / strike_step) * strike_step)
+
+        expiries = ["27-SEP-2026", "04-OCT-2026", "29-OCT-2026"]
+        selected_expiry = expiry if expiry in expiries else expiries[0]
+
+        # Generate 15 strikes centered around ATM (7 ITM/OTM on each side)
+        strikes = [atm_strike + (i * strike_step) for i in range(-7, 8)]
+
+        chain = []
+        total_call_oi = 0
+        total_put_oi = 0
+
+        for strike in strikes:
+            is_atm = (strike == atm_strike)
+            dist = abs(spot_price - strike)
+
+            # 1. Call (CE) calculations
+            ce_intrinsic = max(0.0, spot_price - strike)
+            ce_time_val = max(10.0, (spot_price * 0.006) - (dist * 0.04))
+            ce_ltp = round(ce_intrinsic + ce_time_val, 2)
+            ce_oi = int(max(1000, 150000 - (dist * 120) + random.randint(-1000, 1000)))
+            ce_vol = int(max(500, ce_oi * 0.15))
+            ce_iv = round(14.5 + (dist * 0.005), 1)
+
+            # 2. Put (PE) calculations
+            pe_intrinsic = max(0.0, strike - spot_price)
+            pe_time_val = max(10.0, (spot_price * 0.006) - (dist * 0.04))
+            pe_ltp = round(pe_intrinsic + pe_time_val, 2)
+            pe_oi = int(max(1000, 140000 - (dist * 110) + random.randint(-1000, 1000)))
+            pe_vol = int(max(500, pe_oi * 0.15))
+            pe_iv = round(14.2 + (dist * 0.005), 1)
+
+            total_call_oi += ce_oi
+            total_put_oi += pe_oi
+
+            chain.append({
+                "strike": strike,
+                "is_atm": is_atm,
+                "spot_price": spot_price,
+                "lot_size": lot_size,
+                "call": {
+                    "symbol": f"{symbol} {strike} CE",
+                    "type": "CE",
+                    "ltp": ce_ltp,
+                    "intrinsic": round(ce_intrinsic, 2),
+                    "oi": ce_oi,
+                    "oi_chg": int((random.random() - 0.45) * 5000),
+                    "volume": ce_vol,
+                    "iv": ce_iv,
+                    "itm": spot_price > strike
+                },
+                "put": {
+                    "symbol": f"{symbol} {strike} PE",
+                    "type": "PE",
+                    "ltp": pe_ltp,
+                    "intrinsic": round(pe_intrinsic, 2),
+                    "oi": pe_oi,
+                    "oi_chg": int((random.random() - 0.45) * 5000),
+                    "volume": pe_vol,
+                    "iv": pe_iv,
+                    "itm": spot_price < strike
+                }
+            })
+
+        pcr = round(total_put_oi / total_call_oi, 2) if total_call_oi > 0 else 1.0
+
+        return {
+            "symbol": symbol,
+            "expiry": selected_expiry,
+            "expiries": expiries,
+            "spot_price": spot_price,
+            "atm_strike": atm_strike,
+            "lot_size": lot_size,
+            "pcr": pcr,
+            "total_call_oi": total_call_oi,
+            "total_put_oi": total_put_oi,
+            "chain": chain
+        }
 
 # Global singleton instance
 market_data_streamer = MarketDataStreamer()

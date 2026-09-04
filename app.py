@@ -116,6 +116,11 @@ def get_candles(symbol):
         "dom": dom
     })
 
+@app.route('/api/options/chain/<symbol>', method='GET')
+def get_option_chain(symbol):
+    exp = request.query.get('expiry', None)
+    return json_resp(market_data_streamer.get_option_chain(symbol, exp))
+
 # API - Accounts & Master-Child Copier
 @app.route('/api/accounts', method='GET')
 def get_accounts():

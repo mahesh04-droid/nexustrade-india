@@ -86,6 +86,7 @@ function setupNav() {
       state.currentTab = tabId;
 
       if (tabId === 'terminal-tab') setTimeout(resizeCanvases, 30);
+      else if (tabId === 'options-tab') fetchOptionChain();
       else if (tabId === 'backtest-tab' && state.backtestResult) setTimeout(renderEquityCurve, 30);
     });
   });
@@ -95,6 +96,10 @@ function setupNav() {
 //  EVENT LISTENERS
 // ═══════════════════════════════════════════════════════════════
 function setupListeners() {
+  // Option chain filters
+  document.getElementById('optSymbolSelect')?.addEventListener('change', fetchOptionChain);
+  document.getElementById('optExpirySelect')?.addEventListener('change', fetchOptionChain);
+
   // Instrument dropdown
   document.getElementById('instrumentSelectorBtn')?.addEventListener('click', () => {
     document.getElementById('instrumentDropdown')?.classList.toggle('open');
@@ -360,6 +365,105 @@ async function fetchAccounts() {
   }
   updatePortfolioStrip();
 }
+
+async function fetchOptionChain() {
+  const sym = document.getElementById('optSymbolSelect')?.value || 'NIFTY50';
+  const exp = document.getElementById('optExpirySelect')?.value || '';
+  const data = await api(`/api/options/chain/${sym}?expiry=${exp}`);
+  if (!data) return;
+
+  state.optionChain = data;
+  renderOptionChain();
+}
+
+function renderOptionChain() {
+  const tbody = document.getElementById('optionsChainBody');
+  const pcrVal = document.getElementById('optPcrVal');
+  const pcrStatus = document.getElementById('optPcrStatus');
+  if (!tbody || !state.optionChain) return;
+
+  const data = state.optionChain;
+  if (pcrVal) pcrVal.textContent = data.pcr;
+  if (pcrStatus) {
+    pcrStatus.textContent = data.pcr >= 1.2 ? '(Strong Bullish)' : (data.pcr <= 0.8 ? '(Bearish)' : '(Neutral)');
+    pcrStatus.style.color = data.pcr >= 1.0 ? '#10d982' : '#f43f5e';
+  }
+
+  tbody.innerHTML = data.chain.map(row => {
+    const isAtm = row.is_atm;
+    const strike = row.strike;
+    const ce = row.call;
+    const pe = row.put;
+
+    const ceBg = ce.itm ? 'background:rgba(16,217,130,0.06);' : '';
+    const peBg = pe.itm ? 'background:rgba(244,63,94,0.06);' : '';
+    const atmBg = isAtm ? 'background:rgba(79,110,247,0.18); font-weight:700;' : '';
+
+    return `
+      <tr style="border-bottom:1px solid #141b28;">
+        <!-- CALLS (CE) -->
+        <td style="${ceBg} border-right:1px solid #1e2840; padding:0.4rem;">
+          <div style="display:flex; gap:0.25rem; justify-content:center;">
+            <button class="btn-small" style="background:#10d982; color:#000; font-weight:700; padding:0.25rem 0.45rem;" onclick="tradeOption('${data.symbol}', ${strike}, 'CE', 'BUY', ${ce.ltp}, ${data.lot_size})">BUY</button>
+            <button class="btn-small" style="background:rgba(244,63,94,0.15); color:#f43f5e; padding:0.25rem 0.45rem;" onclick="tradeOption('${data.symbol}', ${strike}, 'CE', 'SELL', ${ce.ltp}, ${data.lot_size})">SELL</button>
+          </div>
+        </td>
+        <td style="${ceBg} font-weight:600; color:#10d982;">₹${ce.ltp.toFixed(2)}</td>
+        <td style="${ceBg} color:${ce.oi_chg>=0?'#10d982':'#f43f5e'};">${ce.oi_chg>=0?'+':''}${(ce.oi_chg/1000).toFixed(1)}k</td>
+        <td style="${ceBg} color:#8a99ad;">${ce.iv}%</td>
+        <td style="${ceBg} border-right:1px solid #1e2840; color:#a5b4d4;">${(ce.oi/1000).toFixed(1)}k</td>
+
+        <!-- STRIKE PRICE -->
+        <td style="${atmBg} color:#fff; font-weight:800; font-size:0.9rem; padding:0.5rem 0.8rem;">
+          ${strike} ${isAtm ? '<span style="font-size:0.65rem; color:#4f6ef7; display:block;">ATM</span>' : ''}
+        </td>
+
+        <!-- PUTS (PE) -->
+        <td style="${peBg} border-left:1px solid #1e2840; color:#a5b4d4;">${(pe.oi/1000).toFixed(1)}k</td>
+        <td style="${peBg} color:#8a99ad;">${pe.iv}%</td>
+        <td style="${peBg} color:${pe.oi_chg>=0?'#10d982':'#f43f5e'};">${pe.oi_chg>=0?'+':''}${(pe.oi_chg/1000).toFixed(1)}k</td>
+        <td style="${peBg} font-weight:600; color:#f43f5e;">₹${pe.ltp.toFixed(2)}</td>
+        <td style="${peBg} padding:0.4rem;">
+          <div style="display:flex; gap:0.25rem; justify-content:center;">
+            <button class="btn-small" style="background:#f43f5e; color:#fff; font-weight:700; padding:0.25rem 0.45rem;" onclick="tradeOption('${data.symbol}', ${strike}, 'PE', 'BUY', ${pe.ltp}, ${data.lot_size})">BUY</button>
+            <button class="btn-small" style="background:rgba(16,217,130,0.15); color:#10d982; padding:0.25rem 0.45rem;" onclick="tradeOption('${data.symbol}', ${strike}, 'PE', 'SELL', ${pe.ltp}, ${data.lot_size})">SELL</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+window.tradeOption = async (indexSymbol, strike, optType, side, price, lotSize) => {
+  const accId = document.getElementById('ticketAccountSelect')?.value;
+  if (!accId) {
+    toast('error', 'No Account Connected', 'Please connect a broker account under Accounts tab first.');
+    return;
+  }
+
+  const optionSymbol = `${indexSymbol} ${strike} ${optType}`;
+  toast('info', 'Executing Option Order', `${side} ${lotSize}x ${optionSymbol} @ ₹${price}...`);
+
+  const data = await api('/api/orders/place', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      account_id: accId,
+      symbol: optionSymbol,
+      side: side,
+      quantity: lotSize,
+      type: 'MARKET',
+      strategy: 'Option Chain Terminal'
+    })
+  });
+
+  if (data?.status === 'SUCCESS') {
+    toast('success', 'Option Order Executed', `${side} ${lotSize}x ${optionSymbol} filled @ ₹${price}`);
+    fetchAccounts();
+    fetchOrderHistory();
+  } else {
+    toast('error', 'Option Order Rejected', data?.message || 'Execution error');
+  }
+};
 
 async function fetchAlgoPresets() {
   const data = await api('/api/algo/presets');
@@ -793,6 +897,13 @@ function renderDOM() {
 function renderAccountSelect() {
   const sel = document.getElementById('ticketAccountSelect');
   if (!sel) return;
+
+  if (!state.accounts || state.accounts.length === 0) {
+    sel.innerHTML = `<option value="">No Accounts Linked — Connect Broker Account First</option>`;
+    updateModebadge();
+    return;
+  }
+
   sel.innerHTML = state.accounts.map(a =>
     `<option value="${a.id}">${a.name} (${a.type} · ${a.mode})</option>`
   ).join('');
@@ -805,7 +916,11 @@ function updateModebadge() {
   const badge = document.getElementById('ticketModeBadge');
   if (!sel || !badge) return;
   const acc = state.accounts.find(a => a.id === sel.value);
-  if (!acc) return;
+  if (!acc) {
+    badge.textContent = 'None';
+    badge.className = 'mode-badge paper';
+    return;
+  }
   badge.textContent = acc.mode;
   badge.className = `mode-badge ${acc.mode === 'Live' ? 'live' : 'paper'}`;
 }
@@ -821,6 +936,10 @@ function updateEstimate() {
 
 async function placeOrder(side) {
   const accId  = document.getElementById('ticketAccountSelect')?.value;
+  if (!accId) {
+    toast('error', 'No Account Connected', 'Please connect a broker account under Accounts tab first.');
+    return;
+  }
   const symbol = state.selectedSymbol;
   const qty    = parseInt(document.getElementById('ticketQuantity')?.value) || 1;
   const type   = document.getElementById('ticketOrderType')?.value || 'MARKET';
@@ -847,6 +966,21 @@ async function placeOrder(side) {
 function renderAccountsGrid() {
   const grid = document.getElementById('accountsGridContainer');
   if (!grid) return;
+
+  if (!state.accounts || state.accounts.length === 0) {
+    grid.innerHTML = `
+      <div class="panel" style="grid-column:1/-1; padding:3rem 1.5rem; text-align:center;">
+        <div style="width:52px; height:52px; background:rgba(79,110,247,0.12); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4f6ef7" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="17" y1="11" x2="23" y2="11"/></svg>
+        </div>
+        <h3 style="color:#fff; font-size:1.1rem; font-weight:700; margin-bottom:0.4rem;">No Linked Broker Accounts</h3>
+        <p style="color:#8a99ad; font-size:0.82rem; margin-bottom:1.5rem;">Connect your primary Master account (Zerodha, AngelOne, Upstox, Dhan) to start trading.</p>
+        <button class="btn-primary" onclick="openModal('accountModal')">
+          + Connect Master Broker Account
+        </button>
+      </div>`;
+    return;
+  }
 
   grid.innerHTML = state.accounts.map(acc => {
     const pnl = acc.unrealized_pnl ?? 0;
