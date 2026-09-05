@@ -175,6 +175,7 @@ class AccountManager:
 
     def get_all_accounts(self):
         """Returns account summaries including balance, P&L, and open positions."""
+        self.accounts = self._load_accounts()
         result = []
         for acc_id, acc in self.accounts.items():
             acc_copy = dict(acc)

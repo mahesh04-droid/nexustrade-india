@@ -65,8 +65,20 @@ function init() {
   fetchRiskStatus();
   fetchOrderHistory();
 
-  // Live data refresh loop (high frequency 500ms real-time stream)
-  setInterval(refreshLive, 500);
+  // Dedicated staggered polling intervals — zero interference & optimal performance
+  setInterval(() => {
+    fetchAssets();
+    fetchCandles();
+  }, 1000); // 1-second real-time tick and candle streaming
+
+  setInterval(() => {
+    fetchAccounts();
+  }, 2500); // 2.5-second account & copier sync
+
+  setInterval(() => {
+    fetchRiskStatus();
+    fetchOrderHistory();
+  }, 3500); // 3.5-second risk & order logs sync
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -87,6 +99,7 @@ function setupNav() {
 
       if (tabId === 'terminal-tab') setTimeout(resizeCanvases, 30);
       else if (tabId === 'options-tab') fetchOptionChain();
+      else if (tabId === 'accounts-tab') fetchAccounts();
       else if (tabId === 'backtest-tab' && state.backtestResult) setTimeout(renderEquityCurve, 30);
     });
   });
@@ -349,14 +362,21 @@ async function fetchCandles() {
   updateTopbar();
 }
 
+let isFetchingAccounts = false;
 async function fetchAccounts() {
-  const data = await api('/api/accounts');
-  if (!data) return;
+  if (isFetchingAccounts) return;
+  isFetchingAccounts = true;
+  try {
+    const data = await api('/api/accounts');
+    if (!data || !Array.isArray(data)) return;
 
-  state.accounts = data;
-  renderAccountsGrid();
-  renderAccountSelect();
-  updatePortfolioStrip();
+    state.accounts = data;
+    renderAccountsGrid();
+    renderAccountSelect();
+    updatePortfolioStrip();
+  } finally {
+    isFetchingAccounts = false;
+  }
 }
 
 async function fetchOptionChain() {
@@ -969,6 +989,7 @@ function renderAccountsGrid() {
   if (!grid) return;
 
   if (!state.accounts || state.accounts.length === 0) {
+    if (state.lastRenderedAccIds === 'empty') return;
     state.lastRenderedAccIds = 'empty';
     grid.innerHTML = `
       <div class="panel" style="grid-column:1/-1; padding:3rem 1.5rem; text-align:center;">
@@ -987,31 +1008,40 @@ function renderAccountsGrid() {
   const currIds = state.accounts.map(a => `${a.id}_${a.mode}_${a.name}`).join('|');
 
   // IF CARDS ARE ALREADY IN DOM AND ACCOUNT LIST STRUCTURE HAVEN'T CHANGED: UPDATE IN-PLACE! ZERO BLINKING!
-  if (state.lastRenderedAccIds === currIds && grid.children.length === state.accounts.length) {
-    state.accounts.forEach(acc => {
-      const card = document.getElementById(`acc-card-${acc.id}`);
-      if (!card) return;
-
-      const pnl = acc.unrealized_pnl ?? 0;
-      const eq  = acc.total_equity   ?? acc.balance;
-      const pnlSign = pnl >= 0 ? '+' : '';
-
-      const balEl = card.querySelector('.acc-val-balance');
-      if (balEl) balEl.textContent = `₹${(acc.balance||0).toLocaleString(undefined,{minimumFractionDigits:2})}`;
-
-      const eqEl = card.querySelector('.acc-val-equity');
-      if (eqEl) eqEl.textContent = `₹${eq.toLocaleString(undefined,{minimumFractionDigits:2})}`;
-
-      const pnlEl = card.querySelector('.acc-val-pnl');
-      if (pnlEl) {
-        pnlEl.textContent = `${pnlSign}₹${pnl.toFixed(2)}`;
-        pnlEl.className = `acc-stat-val acc-val-pnl ${pnl >= 0 ? 'green' : 'red'}`;
+  if (state.lastRenderedAccIds === currIds) {
+    let allCardsExist = true;
+    for (const acc of state.accounts) {
+      if (!document.getElementById(`acc-card-${acc.id}`)) {
+        allCardsExist = false;
+        break;
       }
+    }
+    if (allCardsExist) {
+      state.accounts.forEach(acc => {
+        const card = document.getElementById(`acc-card-${acc.id}`);
+        if (!card) return;
 
-      const posEl = card.querySelector('.acc-val-positions');
-      if (posEl) posEl.textContent = acc.open_positions_count || 0;
-    });
-    return;
+        const pnl = acc.unrealized_pnl ?? 0;
+        const eq  = acc.total_equity   ?? acc.balance;
+        const pnlSign = pnl >= 0 ? '+' : '';
+
+        const balEl = card.querySelector('.acc-val-balance');
+        if (balEl) balEl.textContent = `₹${(acc.balance||0).toLocaleString(undefined,{minimumFractionDigits:2})}`;
+
+        const eqEl = card.querySelector('.acc-val-equity');
+        if (eqEl) eqEl.textContent = `₹${eq.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+
+        const pnlEl = card.querySelector('.acc-val-pnl');
+        if (pnlEl) {
+          pnlEl.textContent = `${pnlSign}₹${pnl.toFixed(2)}`;
+          pnlEl.className = `acc-stat-val acc-val-pnl ${pnl >= 0 ? 'green' : 'red'}`;
+        }
+
+        const posEl = card.querySelector('.acc-val-positions');
+        if (posEl) posEl.textContent = acc.open_positions_count || 0;
+      });
+      return;
+    }
   }
 
   // FIRST TIME OR ACCOUNT ADDED/REMOVED: RENDER HTML ONCE
