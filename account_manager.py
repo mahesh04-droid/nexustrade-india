@@ -75,8 +75,8 @@ class AccountManager:
                 )
                 res = conn.fetch_live_profile_and_balance()
                 if res.get("status") == "SUCCESS":
-                    if res.get("balance", 0) > 0:
-                        balance = res["balance"]
+                    if "balance" in res:
+                        balance = float(res["balance"])
                     if res.get("name"):
                         name = res["name"]
                     if getattr(conn, "jwt_token", None):
@@ -156,8 +156,8 @@ class AccountManager:
                 )
                 res = conn.fetch_live_profile_and_balance()
                 if res.get("status") == "SUCCESS":
-                    if res.get("balance", 0) > 0:
-                        acc["balance"] = res["balance"]
+                    if "balance" in res:
+                        acc["balance"] = float(res["balance"])
                     if res.get("name"):
                         acc["name"] = res["name"]
                     if getattr(conn, "jwt_token", None):

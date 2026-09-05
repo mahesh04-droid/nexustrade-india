@@ -6,6 +6,35 @@ Official API Documentation: https://smartapi.angelone.in/docs
 
 import json
 import urllib.request
+import hmac
+import hashlib
+import time
+import struct
+import base64
+
+def generate_totp_code(secret_or_code):
+    """
+    Generates dynamic 6-digit TOTP code from standard base32 TOTP Secret Key or passes through 6-digit numeric OTP code.
+    """
+    if not secret_or_code:
+        return "000000"
+    clean = str(secret_or_code).replace(" ", "").upper()
+    if clean.isdigit() and len(clean) == 6:
+        return clean
+    try:
+        missing_padding = len(clean) % 8
+        if missing_padding:
+            clean += '=' * (8 - missing_padding)
+        key = base64.b32decode(clean, True)
+        counter = int(time.time() // 30)
+        msg = struct.pack(">Q", counter)
+        h = hmac.new(key, msg, hashlib.sha1).digest()
+        offset = h[19] & 15
+        code = (struct.unpack(">I", h[offset:offset+4])[0] & 0x7fffffff) % 1000000
+        return f"{code:06d}"
+    except Exception as e:
+        print("AngelOne TOTP Secret warning:", e)
+        return clean
 
 class AngelOneConnector:
     def __init__(self, api_key="", client_code="", password="", totp="", jwt_token=""):
@@ -18,7 +47,7 @@ class AngelOneConnector:
 
     def login_with_totp(self):
         """
-        Logs into official AngelOne SmartAPI using Client Code, Password/MPIN, and TOTP.
+        Logs into official AngelOne SmartAPI using Client Code, Password/MPIN, and TOTP Code/Secret.
         Official Endpoint: /rest/auth/angelbroking/user/v1/loginByPassword
         """
         if not self.api_key or not self.client_code or not self.password:
@@ -26,6 +55,8 @@ class AngelOneConnector:
                 "status": "ERROR",
                 "message": "AngelOne API Key, Client Code, and Password/MPIN are required."
             }
+
+        totp_code = generate_totp_code(self.totp)
 
         url = f"{self.base_url}/rest/auth/angelbroking/user/v1/loginByPassword"
         headers = {
@@ -42,13 +73,13 @@ class AngelOneConnector:
         payload = {
             "clientcode": self.client_code,
             "password": self.password,
-            "totp": self.totp or "000000"
+            "totp": totp_code
         }
 
         try:
             data_json = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(url, data=data_json, headers=headers)
-            with urllib.request.urlopen(req, timeout=7) as resp:
+            with urllib.request.urlopen(req, timeout=8) as resp:
                 res = json.loads(resp.read().decode('utf-8'))
                 if res.get("status") and "data" in res:
                     jwt = res["data"].get("jwtToken")
@@ -122,10 +153,41 @@ class AngelOneConnector:
             req_r = urllib.request.Request(url_rms, headers=headers)
             with urllib.request.urlopen(req_r, timeout=5) as resp:
                 res_r = json.loads(resp.read().decode('utf-8'))
+                
+                # If JWT token expired or invalid, retry login via TOTP once
+                if not res_r.get("status") and self.password:
+                    login_res = self.login_with_totp()
+                    if login_res.get("status") == "SUCCESS":
+                        headers["Authorization"] = f"Bearer {self.jwt_token}"
+                        req_r2 = urllib.request.Request(url_rms, headers=headers)
+                        with urllib.request.urlopen(req_r2, timeout=5) as resp2:
+                            res_r = json.loads(resp2.read().decode('utf-8'))
+
                 if res_r.get("status") and "data" in res_r:
                     r_data = res_r["data"]
-                    cash_str = r_data.get("net") or r_data.get("availablecash") or "0"
-                    balance = float(cash_str)
+                    
+                    # Robust balance parsing across AngelOne RMS response fields
+                    for k in ["availablecash", "net", "availablemargin", "collateral", "payin"]:
+                        val = r_data.get(k)
+                        if val is not None:
+                            try:
+                                fval = float(str(val).strip())
+                                if fval > 0:
+                                    balance = fval
+                                    break
+                            except (ValueError, TypeError):
+                                pass
+                    
+                    if balance == 0.0:
+                        for k in ["availablecash", "net", "availablemargin", "collateral"]:
+                            val = r_data.get(k)
+                            if val is not None:
+                                try:
+                                    balance = float(str(val).strip())
+                                    break
+                                except (ValueError, TypeError):
+                                    pass
+
                     return {
                         "status": "SUCCESS",
                         "broker": "AngelOne SmartAPI",
@@ -134,6 +196,11 @@ class AngelOneConnector:
                         "balance": balance,
                         "raw_rms": r_data,
                         "message": f"Successfully synced live AngelOne balance: ₹{balance:,.2f}"
+                    }
+                else:
+                    return {
+                        "status": "ERROR",
+                        "message": res_r.get("message", "AngelOne RMS query returned invalid status.")
                     }
         except Exception as e:
             return {"status": "ERROR", "message": f"AngelOne RMS Fetch Error: {str(e)}"}
