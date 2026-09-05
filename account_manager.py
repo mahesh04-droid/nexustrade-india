@@ -52,24 +52,35 @@ class AccountManager:
     def add_account(self, account_data):
         """Adds or connects a new broker account profile with auto-fetching live balance."""
         acc_id = account_data.get("id") or f"ACC-{uuid.uuid4().hex[:6].upper()}"
-        broker = account_data.get("broker", "Paper Simulator")
-        api_key = account_data.get("api_key", "")
-        api_secret = account_data.get("api_secret", "")
+        broker = account_data.get("broker", "Zerodha Kite Connect")
+        api_key = str(account_data.get("api_key", "")).strip()
+        api_secret = str(account_data.get("api_secret", "")).strip()
+        client_code = str(account_data.get("client_code", "")).strip()
+        password = str(account_data.get("password", "")).strip()
+        totp = str(account_data.get("totp", "")).strip()
 
-        balance = float(account_data.get("balance", 500000.0))
-        name = account_data.get("name", "New Account")
+        balance = float(account_data.get("balance", 1000000.0))
+        name = account_data.get("name", "Master Account")
 
         # Auto-fetch live balance & profile if connecting AngelOne SmartAPI
         if "Angel" in broker and api_key:
             try:
                 from brokers import AngelOneConnector
-                conn = AngelOneConnector(api_key=api_key, jwt_token=api_secret)
+                conn = AngelOneConnector(
+                    api_key=api_key,
+                    client_code=client_code,
+                    password=password,
+                    totp=totp,
+                    jwt_token=api_secret
+                )
                 res = conn.fetch_live_profile_and_balance()
                 if res.get("status") == "SUCCESS":
                     if res.get("balance", 0) > 0:
                         balance = res["balance"]
                     if res.get("name"):
                         name = res["name"]
+                    if getattr(conn, "jwt_token", None):
+                        api_secret = conn.jwt_token
             except Exception as e:
                 print("AngelOne auto-sync error:", e)
 
@@ -81,10 +92,13 @@ class AccountManager:
             "balance": balance,
             "currency": account_data.get("currency", "INR"),
             "status": "Connected",
-            "mode": account_data.get("mode", "Paper"),
+            "mode": account_data.get("mode", "Live"), # Default to Live Real Execution
             "api_key": api_key or "sec_xxxx",
             "api_secret": "••••••••••••••••" if api_secret else "",
             "raw_jwt": api_secret,
+            "client_code": client_code,
+            "password": password,
+            "totp": totp,
             "multiplier": float(account_data.get("multiplier", 1.0)),
             "master_id": account_data.get("master_id", "ACC-MASTER-01")
         }
@@ -129,13 +143,25 @@ class AccountManager:
                 from brokers import AngelOneConnector
                 api_key = acc.get("api_key", "")
                 jwt_token = acc.get("raw_jwt", "")
-                conn = AngelOneConnector(api_key=api_key, jwt_token=jwt_token)
+                client_code = acc.get("client_code", "")
+                password = acc.get("password", "")
+                totp = acc.get("totp", "")
+
+                conn = AngelOneConnector(
+                    api_key=api_key,
+                    client_code=client_code,
+                    password=password,
+                    totp=totp,
+                    jwt_token=jwt_token
+                )
                 res = conn.fetch_live_profile_and_balance()
                 if res.get("status") == "SUCCESS":
                     if res.get("balance", 0) > 0:
                         acc["balance"] = res["balance"]
                     if res.get("name"):
                         acc["name"] = res["name"]
+                    if getattr(conn, "jwt_token", None):
+                        acc["raw_jwt"] = conn.jwt_token
                     self._save_accounts()
                     return res
                 return res

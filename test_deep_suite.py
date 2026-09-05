@@ -357,6 +357,36 @@ class DeepSystemTestSuite(unittest.TestCase):
             self.assertEqual(opt_data["symbol"], "BANKNIFTY")
             self.assertIn("chain", opt_data)
 
+    # ═══════════════════════════════════════════════════════════════
+    #  9. INSTITUTIONAL ALGO ENGINE & ANGELONE LIVE TESTS
+    # ═══════════════════════════════════════════════════════════════
+    def test_15_worldclass_algo_and_angelone(self):
+        """Verifies TWAP, Iceberg order slicing, Option Greeks, & AngelOne SmartAPI Gateway."""
+        from algo_execution import TWAPExecutionAlgo, IcebergOrderEngine, OptionGreeksCalculator
+        from brokers import AngelOneConnector
+
+        # 1. Test TWAP Execution Slicing
+        twap_res = TWAPExecutionAlgo.slice_order(total_quantity=500, duration_minutes=15, slice_interval_seconds=60)
+        self.assertEqual(twap_res["num_slices"], 15)
+        self.assertEqual(sum(s["quantity"] for s in twap_res["slices"]), 500)
+
+        # 2. Test Iceberg Order Slicing
+        iceberg_res = IcebergOrderEngine.create_iceberg(total_quantity=200, visible_size=25)
+        self.assertEqual(iceberg_res["num_tranches"], 8)
+        self.assertEqual(iceberg_res["tranches"][0]["visible_qty"], 25)
+
+        # 3. Test Option Greeks Calculator (Black-Scholes)
+        greeks = OptionGreeksCalculator.calculate_greeks(spot=24000, strike=24000, time_to_expiry_years=0.08, risk_free_rate=0.07, iv=0.15, is_call=True)
+        self.assertIn("delta", greeks)
+        self.assertIn("gamma", greeks)
+        self.assertIn("theta", greeks)
+        self.assertIn("vega", greeks)
+        self.assertGreater(greeks["delta"], 0.4)
+
+        # 4. Test AngelOne Live Connector Interface
+        conn = AngelOneConnector(api_key="test_key", client_code="M123456", password="pass", totp="123456")
+        self.assertEqual(conn.client_code, "M123456")
+
 if __name__ == '__main__':
     print("==================================================================")
     print("  RUNNING NEXUSTRADE INDIA PRO - DEEP AUTOMATED SYSTEM TEST SUITE ")

@@ -1421,18 +1421,21 @@ async function submitAddAccount() {
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({
       name,
-      type:       document.getElementById('newAccType')?.value,
-      broker:     document.getElementById('newAccBroker')?.value,
-      mode:       document.getElementById('newAccMode')?.value,
-      balance:    parseFloat(document.getElementById('newAccBalance')?.value || 500000),
-      multiplier: parseFloat(document.getElementById('newAccMultiplier')?.value || 1.0),
-      api_key:    document.getElementById('newAccApiKey')?.value,
-      api_secret: document.getElementById('newAccApiSecret')?.value,
+      type:        document.getElementById('newAccType')?.value,
+      broker:      document.getElementById('newAccBroker')?.value,
+      mode:        document.getElementById('newAccMode')?.value,
+      balance:     parseFloat(document.getElementById('newAccBalance')?.value || 1000000),
+      multiplier:  parseFloat(document.getElementById('newAccMultiplier')?.value || 1.0),
+      api_key:     document.getElementById('newAccApiKey')?.value,
+      client_code: document.getElementById('newAccClientCode')?.value,
+      password:    document.getElementById('newAccPassword')?.value,
+      totp:        document.getElementById('newAccTotp')?.value,
+      api_secret:  document.getElementById('newAccApiSecret')?.value,
     })
   });
 
   if (data?.status === 'SUCCESS') {
-    toast('success', 'Account Connected', `${name} has been linked successfully`);
+    toast('success', 'Account Connected', `${name} linked successfully`);
     closeModal('accountModal');
     fetchAccounts();
   } else {
