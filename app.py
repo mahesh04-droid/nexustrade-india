@@ -41,6 +41,7 @@ def login_page():
 
 @app.route('/static/<filepath:path>')
 def server_static(filepath):
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return static_file(filepath, root=os.path.join(os.path.dirname(__file__), 'static'))
 
 # API - Security & Authentication Routes
