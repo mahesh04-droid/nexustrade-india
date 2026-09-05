@@ -352,17 +352,10 @@ async function fetchCandles() {
 async function fetchAccounts() {
   const data = await api('/api/accounts');
   if (!data) return;
-  
-  const hash = JSON.stringify(data.map(a => [a.id, a.name, a.mode, a.type, a.balance, a.unrealized_pnl, a.open_positions_count]));
-  const structureChanged = !state.lastAccountsHash || JSON.stringify(data.map(a => a.id)) !== JSON.stringify(state.accounts.map(a => a.id));
-  
+
   state.accounts = data;
-  
-  if (hash !== state.lastAccountsHash) {
-    state.lastAccountsHash = hash;
-    renderAccountsGrid();
-    if (structureChanged) renderAccountSelect();
-  }
+  renderAccountsGrid();
+  renderAccountSelect();
   updatePortfolioStrip();
 }
 
@@ -899,16 +892,24 @@ function renderAccountSelect() {
   if (!sel) return;
 
   if (!state.accounts || state.accounts.length === 0) {
-    sel.innerHTML = `<option value="">No Accounts Linked — Connect Broker Account First</option>`;
-    updateModebadge();
+    if (state.lastRenderedAccSelect !== 'empty') {
+      state.lastRenderedAccSelect = 'empty';
+      sel.innerHTML = `<option value="">No Accounts Linked — Connect Broker Account First</option>`;
+      updateModebadge();
+    }
     return;
   }
 
+  const currSelect = state.accounts.map(a => `${a.id}_${a.mode}_${a.name}`).join('|');
+  if (state.lastRenderedAccSelect === currSelect && sel.children.length === state.accounts.length) {
+    return; // Don't wipe select dropdown while user is interacting!
+  }
+
+  state.lastRenderedAccSelect = currSelect;
   sel.innerHTML = state.accounts.map(a =>
     `<option value="${a.id}">${a.name} (${a.type} · ${a.mode})</option>`
   ).join('');
   updateModebadge();
-  sel.addEventListener('change', updateModebadge);
 }
 
 function updateModebadge() {
@@ -968,6 +969,7 @@ function renderAccountsGrid() {
   if (!grid) return;
 
   if (!state.accounts || state.accounts.length === 0) {
+    state.lastRenderedAccIds = 'empty';
     grid.innerHTML = `
       <div class="panel" style="grid-column:1/-1; padding:3rem 1.5rem; text-align:center;">
         <div style="width:52px; height:52px; background:rgba(79,110,247,0.12); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem;">
@@ -982,13 +984,45 @@ function renderAccountsGrid() {
     return;
   }
 
+  const currIds = state.accounts.map(a => `${a.id}_${a.mode}_${a.name}`).join('|');
+
+  // IF CARDS ARE ALREADY IN DOM AND ACCOUNT LIST STRUCTURE HAVEN'T CHANGED: UPDATE IN-PLACE! ZERO BLINKING!
+  if (state.lastRenderedAccIds === currIds && grid.children.length === state.accounts.length) {
+    state.accounts.forEach(acc => {
+      const card = document.getElementById(`acc-card-${acc.id}`);
+      if (!card) return;
+
+      const pnl = acc.unrealized_pnl ?? 0;
+      const eq  = acc.total_equity   ?? acc.balance;
+      const pnlSign = pnl >= 0 ? '+' : '';
+
+      const balEl = card.querySelector('.acc-val-balance');
+      if (balEl) balEl.textContent = `₹${(acc.balance||0).toLocaleString(undefined,{minimumFractionDigits:2})}`;
+
+      const eqEl = card.querySelector('.acc-val-equity');
+      if (eqEl) eqEl.textContent = `₹${eq.toLocaleString(undefined,{minimumFractionDigits:2})}`;
+
+      const pnlEl = card.querySelector('.acc-val-pnl');
+      if (pnlEl) {
+        pnlEl.textContent = `${pnlSign}₹${pnl.toFixed(2)}`;
+        pnlEl.className = `acc-stat-val acc-val-pnl ${pnl >= 0 ? 'green' : 'red'}`;
+      }
+
+      const posEl = card.querySelector('.acc-val-positions');
+      if (posEl) posEl.textContent = acc.open_positions_count || 0;
+    });
+    return;
+  }
+
+  // FIRST TIME OR ACCOUNT ADDED/REMOVED: RENDER HTML ONCE
+  state.lastRenderedAccIds = currIds;
   grid.innerHTML = state.accounts.map(acc => {
     const pnl = acc.unrealized_pnl ?? 0;
     const eq  = acc.total_equity   ?? acc.balance;
     const pnlSign = pnl >= 0 ? '+' : '';
 
     return `
-      <div class="account-card">
+      <div class="account-card" id="acc-card-${acc.id}">
         <div class="acc-card-header">
           <div>
             <div class="acc-name">${acc.name}</div>
@@ -1003,19 +1037,19 @@ function renderAccountsGrid() {
         <div class="acc-stats">
           <div class="acc-stat">
             <div class="acc-stat-label">Balance</div>
-            <div class="acc-stat-val">₹${(acc.balance||0).toLocaleString(undefined,{minimumFractionDigits:2})}</div>
+            <div class="acc-stat-val acc-val-balance">₹${(acc.balance||0).toLocaleString(undefined,{minimumFractionDigits:2})}</div>
           </div>
           <div class="acc-stat">
             <div class="acc-stat-label">Total Equity</div>
-            <div class="acc-stat-val">₹${eq.toLocaleString(undefined,{minimumFractionDigits:2})}</div>
+            <div class="acc-stat-val acc-val-equity">₹${eq.toLocaleString(undefined,{minimumFractionDigits:2})}</div>
           </div>
           <div class="acc-stat">
             <div class="acc-stat-label">Unrealized P&amp;L</div>
-            <div class="acc-stat-val ${pnl>=0?'green':'red'}">${pnlSign}₹${pnl.toFixed(2)}</div>
+            <div class="acc-stat-val acc-val-pnl ${pnl>=0?'green':'red'}">${pnlSign}₹${pnl.toFixed(2)}</div>
           </div>
           <div class="acc-stat">
             <div class="acc-stat-label">Open Positions</div>
-            <div class="acc-stat-val">${acc.open_positions_count || 0}</div>
+            <div class="acc-stat-val acc-val-positions">${acc.open_positions_count || 0}</div>
           </div>
         </div>
 
